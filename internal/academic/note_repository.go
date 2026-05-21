@@ -1,0 +1,295 @@
+package academic
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+type Note struct {
+	ID               uuid.UUID
+	ChapterID        uuid.UUID
+	ChapterName      string
+	UnitName         string
+	SubjectName      string
+	SemesterName     string
+	ClassName        string
+	Title            string
+	Slug             string
+	Description      *string
+	OriginalFileName string
+	StoredFileName   string
+	StorageKey       string
+	ContentType      string
+	FileSizeBytes    int64
+	IsPDF            bool
+	IsWatermarked    bool
+	DownloadCount    int64
+	ViewCount        int64
+	SortOrder        int
+	IsPublished      bool
+	UploadedBy       *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type NoteRepository struct {
+	pool *pgxpool.Pool
+}
+
+func NewNoteRepository(pool *pgxpool.Pool) *NoteRepository {
+	return &NoteRepository{
+		pool: pool,
+	}
+}
+
+type CreateNoteParams struct {
+	ChapterID        uuid.UUID
+	Title            string
+	Description      string
+	OriginalFileName string
+	StoredFileName   string
+	StorageKey       string
+	ContentType      string
+	FileSizeBytes    int64
+	IsPDF            bool
+	IsWatermarked    bool
+	SortOrder        int
+	IsPublished      bool
+	UploadedBy       uuid.UUID
+}
+
+func (r *NoteRepository) Create(ctx context.Context, params CreateNoteParams) (Note, error) {
+	title := strings.TrimSpace(params.Title)
+	description := strings.TrimSpace(params.Description)
+	originalFileName := strings.TrimSpace(params.OriginalFileName)
+	storedFileName := strings.TrimSpace(params.StoredFileName)
+	storageKey := strings.TrimSpace(params.StorageKey)
+	contentType := strings.TrimSpace(params.ContentType)
+
+	if params.ChapterID == uuid.Nil {
+		return Note{}, errors.New("chapter is required")
+	}
+
+	if title == "" {
+		return Note{}, errors.New("note title is required")
+	}
+
+	if originalFileName == "" {
+		return Note{}, errors.New("original file name is required")
+	}
+
+	if storedFileName == "" {
+		return Note{}, errors.New("stored file name is required")
+	}
+
+	if storageKey == "" {
+		return Note{}, errors.New("storage key is required")
+	}
+
+	if contentType == "" {
+		return Note{}, errors.New("content type is required")
+	}
+
+	if params.FileSizeBytes <= 0 {
+		return Note{}, errors.New("file size must be greater than zero")
+	}
+
+	if params.UploadedBy == uuid.Nil {
+		return Note{}, errors.New("uploaded by is required")
+	}
+
+	slug := Slugify(title)
+	if slug == "" {
+		return Note{}, errors.New("note title must contain valid characters")
+	}
+
+	var descriptionPtr *string
+	if description != "" {
+		descriptionPtr = &description
+	}
+
+	var created Note
+
+	err := r.pool.QueryRow(ctx, `
+		INSERT INTO notes (
+			chapter_id,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			sort_order,
+			is_published,
+			uploaded_by
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		RETURNING
+			id,
+			chapter_id,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			download_count,
+			view_count,
+			sort_order,
+			is_published,
+			uploaded_by,
+			created_at,
+			updated_at
+	`,
+		params.ChapterID,
+		title,
+		slug,
+		descriptionPtr,
+		originalFileName,
+		storedFileName,
+		storageKey,
+		contentType,
+		params.FileSizeBytes,
+		params.IsPDF,
+		params.IsWatermarked,
+		params.SortOrder,
+		params.IsPublished,
+		params.UploadedBy,
+	).Scan(
+		&created.ID,
+		&created.ChapterID,
+		&created.Title,
+		&created.Slug,
+		&created.Description,
+		&created.OriginalFileName,
+		&created.StoredFileName,
+		&created.StorageKey,
+		&created.ContentType,
+		&created.FileSizeBytes,
+		&created.IsPDF,
+		&created.IsWatermarked,
+		&created.DownloadCount,
+		&created.ViewCount,
+		&created.SortOrder,
+		&created.IsPublished,
+		&created.UploadedBy,
+		&created.CreatedAt,
+		&created.UpdatedAt,
+	)
+	if err != nil {
+		return Note{}, fmt.Errorf("create note: %w", err)
+	}
+
+	return created, nil
+}
+
+func (r *NoteRepository) List(ctx context.Context) ([]Note, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			n.id,
+			n.chapter_id,
+			ch.name AS chapter_name,
+			u.name AS unit_name,
+			sub.name AS subject_name,
+			sem.name AS semester_name,
+			c.name AS class_name,
+			n.title,
+			n.slug,
+			n.description,
+			n.original_file_name,
+			n.stored_file_name,
+			n.storage_key,
+			n.content_type,
+			n.file_size_bytes,
+			n.is_pdf,
+			n.is_watermarked,
+			n.download_count,
+			n.view_count,
+			n.sort_order,
+			n.is_published,
+			n.uploaded_by,
+			n.created_at,
+			n.updated_at
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+		ORDER BY
+			c.sort_order ASC,
+			c.name ASC,
+			sem.sort_order ASC,
+			sem.name ASC,
+			sub.sort_order ASC,
+			sub.name ASC,
+			u.sort_order ASC,
+			u.name ASC,
+			ch.sort_order ASC,
+			ch.name ASC,
+			n.sort_order ASC,
+			n.title ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list notes: %w", err)
+	}
+	defer rows.Close()
+
+	notes := make([]Note, 0)
+
+	for rows.Next() {
+		var item Note
+
+		err := rows.Scan(
+			&item.ID,
+			&item.ChapterID,
+			&item.ChapterName,
+			&item.UnitName,
+			&item.SubjectName,
+			&item.SemesterName,
+			&item.ClassName,
+			&item.Title,
+			&item.Slug,
+			&item.Description,
+			&item.OriginalFileName,
+			&item.StoredFileName,
+			&item.StorageKey,
+			&item.ContentType,
+			&item.FileSizeBytes,
+			&item.IsPDF,
+			&item.IsWatermarked,
+			&item.DownloadCount,
+			&item.ViewCount,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.UploadedBy,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan note: %w", err)
+		}
+
+		notes = append(notes, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate notes: %w", err)
+	}
+
+	return notes, nil
+}

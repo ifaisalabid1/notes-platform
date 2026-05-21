@@ -41,6 +41,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	subjectRepo := academic.NewSubjectRepository(deps.DB.Pool)
 	unitRepo := academic.NewUnitRepository(deps.DB.Pool)
 	chapterRepo := academic.NewChapterRepository(deps.DB.Pool)
+	noteRepo := academic.NewNoteRepository(deps.DB.Pool)
 
 	adminAuthHandler := handlers.NewAdminAuthHandler(
 		adminRepo,
@@ -83,6 +84,14 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.Renderer,
 	)
 
+	adminNoteHandler := handlers.NewAdminNoteHandler(
+		chapterRepo,
+		noteRepo,
+		deps.R2,
+		deps.SessionManager,
+		deps.Renderer,
+	)
+
 	adminStorageHandler := handlers.NewAdminStorageHandler(deps.R2)
 
 	authMiddleware := auth.NewMiddleware(deps.SessionManager)
@@ -113,6 +122,9 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/chapters", adminChapterHandler.Index)
 		r.Post("/admin/chapters", adminChapterHandler.Store)
+
+		r.Get("/admin/notes", adminNoteHandler.Index)
+		r.Post("/admin/notes", adminNoteHandler.Store)
 
 		r.Get("/admin/storage/readyz", adminStorageHandler.Ready)
 
