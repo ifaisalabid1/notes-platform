@@ -1,0 +1,20 @@
+{{ define "content" }}
+  <section>
+    <h1>Classes</h1>
+
+    {{ with .Data.Classes }}
+      <ul>
+        {{ range . }}
+          <li>
+            <a href="/classes/{{ .Slug }}">{{ .Name }}</a>
+            {{ if .Description }}
+              <p>{{ .Description }}</p>
+            {{ end }}
+          </li>
+        {{ end }}
+      </ul>
+    {{ else }}
+      <p>No classes are available yet.</p>
+    {{ end }}
+  </section>
+{{ end }}

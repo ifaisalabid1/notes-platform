@@ -1,0 +1,60 @@
+{{ define "content" }}
+  <section>
+    <p>
+      <a href="/">Classes</a> /
+      <a href="/classes/{{ .Data.Class.Slug }}">{{ .Data.Class.Name }}</a> /
+      <a
+        href="/classes/{{ .Data.Class.Slug }}/semesters/{{ .Data.Semester.Slug }}"
+        >{{ .Data.Semester.Name }}</a
+      >
+      /
+      <a
+        href="/classes/{{ .Data.Class.Slug }}/semesters/{{ .Data.Semester.Slug }}/subjects/{{ .Data.Subject.Slug }}"
+        >{{ .Data.Subject.Name }}</a
+      >
+      /
+      <a
+        href="/classes/{{ .Data.Class.Slug }}/semesters/{{ .Data.Semester.Slug }}/subjects/{{ .Data.Subject.Slug }}/units/{{ .Data.Unit.Slug }}"
+        >{{ .Data.Unit.Name }}</a
+      >
+    </p>
+
+    <h1>{{ .Data.Chapter.Name }}</h1>
+
+    {{ if .Data.Chapter.Description }}
+      <p>{{ .Data.Chapter.Description }}</p>
+    {{ end }}
+
+    {{ with .Data.Notes }}
+      <ul>
+        {{ range . }}
+          <li>
+            <h2>{{ .Note.Title }}</h2>
+
+            {{ if .Note.Description }}
+              <p>{{ .Note.Description }}</p>
+            {{ end }}
+
+
+            <p>
+              File type: {{ .Note.ContentType }}<br />
+              Size: {{ .Note.FileSizeBytes }} bytes
+            </p>
+
+            <p>
+              <a
+                href="{{ .FileURL }}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View Notes
+              </a>
+            </p>
+          </li>
+        {{ end }}
+      </ul>
+    {{ else }}
+      <p>No notes are available yet.</p>
+    {{ end }}
+  </section>
+{{ end }}

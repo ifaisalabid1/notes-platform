@@ -1,0 +1,24 @@
+{{ define "content" }}
+  <section>
+    <p><a href="/">Classes</a></p>
+
+    <h1>{{ .Data.Class.Name }}</h1>
+
+    {{ with .Data.Semesters }}
+      <ul>
+        {{ range . }}
+          <li>
+            <a href="/classes/{{ $.Data.Class.Slug }}/semesters/{{ .Slug }}">
+              {{ .Name }}
+            </a>
+            {{ if .Description }}
+              <p>{{ .Description }}</p>
+            {{ end }}
+          </li>
+        {{ end }}
+      </ul>
+    {{ else }}
+      <p>No semesters are available yet.</p>
+    {{ end }}
+  </section>
+{{ end }}

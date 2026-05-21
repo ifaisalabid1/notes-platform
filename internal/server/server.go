@@ -47,6 +47,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	chapterRepo := academic.NewChapterRepository(deps.DB.Pool)
 	noteRepo := academic.NewNoteRepository(deps.DB.Pool)
 
+	publicRepo := academic.NewPublicRepository(deps.DB.Pool)
+
 	adminAuthHandler := handlers.NewAdminAuthHandler(
 		adminRepo,
 		deps.SessionManager,
@@ -100,10 +102,23 @@ func NewRouter(deps Dependencies) http.Handler {
 
 	adminStorageHandler := handlers.NewAdminStorageHandler(deps.R2)
 
+	publicHandler := handlers.NewPublicHandler(
+		publicRepo,
+		deps.FileProxySigner,
+		deps.Renderer,
+	)
+
 	authMiddleware := auth.NewMiddleware(deps.SessionManager)
 
 	r.Get("/healthz", healthHandler.Check)
 	r.Get("/readyz", healthHandler.Ready)
+
+	r.Get("/", publicHandler.Home)
+	r.Get("/classes/{classSlug}", publicHandler.Semesters)
+	r.Get("/classes/{classSlug}/semesters/{semesterSlug}", publicHandler.Subjects)
+	r.Get("/classes/{classSlug}/semesters/{semesterSlug}/subjects/{subjectSlug}", publicHandler.Units)
+	r.Get("/classes/{classSlug}/semesters/{semesterSlug}/subjects/{subjectSlug}/units/{unitSlug}", publicHandler.Chapters)
+	r.Get("/classes/{classSlug}/semesters/{semesterSlug}/subjects/{subjectSlug}/units/{unitSlug}/chapters/{chapterSlug}", publicHandler.Notes)
 
 	r.Get("/admin/login", adminAuthHandler.ShowLogin)
 	r.Post("/admin/login", adminAuthHandler.Login)

@@ -1,0 +1,38 @@
+{{ define "content" }}
+  <section>
+    <p>
+      <a href="/">Classes</a> /
+      <a href="/classes/{{ .Data.Class.Slug }}">{{ .Data.Class.Name }}</a> /
+      <a
+        href="/classes/{{ .Data.Class.Slug }}/semesters/{{ .Data.Semester.Slug }}"
+        >{{ .Data.Semester.Name }}</a
+      >
+      /
+      <a
+        href="/classes/{{ .Data.Class.Slug }}/semesters/{{ .Data.Semester.Slug }}/subjects/{{ .Data.Subject.Slug }}"
+        >{{ .Data.Subject.Name }}</a
+      >
+    </p>
+
+    <h1>{{ .Data.Unit.Name }}</h1>
+
+    {{ with .Data.Chapters }}
+      <ul>
+        {{ range . }}
+          <li>
+            <a
+              href="/classes/{{ $.Data.Class.Slug }}/semesters/{{ $.Data.Semester.Slug }}/subjects/{{ $.Data.Subject.Slug }}/units/{{ $.Data.Unit.Slug }}/chapters/{{ .Slug }}"
+            >
+              {{ .Name }}
+            </a>
+            {{ if .Description }}
+              <p>{{ .Description }}</p>
+            {{ end }}
+          </li>
+        {{ end }}
+      </ul>
+    {{ else }}
+      <p>No chapters are available yet.</p>
+    {{ end }}
+  </section>
+{{ end }}
