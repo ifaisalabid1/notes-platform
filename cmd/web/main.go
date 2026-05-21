@@ -16,6 +16,7 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/config"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/server"
+	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
@@ -38,6 +39,18 @@ func main() {
 	}
 	defer db.Close()
 
+	r2Client, err := storage.NewR2Client(ctx, storage.R2Config{
+		AccountID:       cfg.R2AccountID,
+		AccessKeyID:     cfg.R2AccessKeyID,
+		SecretAccessKey: cfg.R2SecretAccessKey,
+		BucketName:      cfg.R2BucketName,
+		Endpoint:        cfg.R2Endpoint(),
+	})
+	if err != nil {
+		slog.Error("failed to create r2 client", "error", err)
+		os.Exit(1)
+	}
+
 	sessionManager := scs.New()
 	sessionManager.Store = pgxstore.New(db.Pool)
 	sessionManager.Lifetime = 24 * time.Hour
@@ -55,6 +68,7 @@ func main() {
 
 	router := server.NewRouter(server.Dependencies{
 		DB:             db,
+		R2:             r2Client,
 		SessionManager: sessionManager,
 		Renderer:       renderer,
 	})

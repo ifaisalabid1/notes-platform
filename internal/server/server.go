@@ -14,11 +14,13 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/handlers"
+	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type Dependencies struct {
 	DB             *database.DB
+	R2             *storage.R2Client
 	SessionManager *scs.SessionManager
 	Renderer       *views.Renderer
 }
@@ -81,6 +83,8 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.Renderer,
 	)
 
+	adminStorageHandler := handlers.NewAdminStorageHandler(deps.R2)
+
 	authMiddleware := auth.NewMiddleware(deps.SessionManager)
 
 	r.Get("/healthz", healthHandler.Check)
@@ -88,18 +92,6 @@ func NewRouter(deps Dependencies) http.Handler {
 
 	r.Get("/admin/login", adminAuthHandler.ShowLogin)
 	r.Post("/admin/login", adminAuthHandler.Login)
-
-	r.Get("/admin/semesters", adminSemesterHandler.Index)
-	r.Post("/admin/semesters", adminSemesterHandler.Store)
-
-	r.Get("/admin/subjects", adminSubjectHandler.Index)
-	r.Post("/admin/subjects", adminSubjectHandler.Store)
-
-	r.Get("/admin/units", adminUnitHandler.Index)
-	r.Post("/admin/units", adminUnitHandler.Store)
-
-	r.Get("/admin/chapters", adminChapterHandler.Index)
-	r.Post("/admin/chapters", adminChapterHandler.Store)
 
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.RequireAdmin)
@@ -109,6 +101,20 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/classes", adminClassHandler.Index)
 		r.Post("/admin/classes", adminClassHandler.Store)
+
+		r.Get("/admin/semesters", adminSemesterHandler.Index)
+		r.Post("/admin/semesters", adminSemesterHandler.Store)
+
+		r.Get("/admin/subjects", adminSubjectHandler.Index)
+		r.Post("/admin/subjects", adminSubjectHandler.Store)
+
+		r.Get("/admin/units", adminUnitHandler.Index)
+		r.Post("/admin/units", adminUnitHandler.Store)
+
+		r.Get("/admin/chapters", adminChapterHandler.Index)
+		r.Post("/admin/chapters", adminChapterHandler.Store)
+
+		r.Get("/admin/storage/readyz", adminStorageHandler.Ready)
 
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireOwner)
