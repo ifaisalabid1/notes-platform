@@ -13,6 +13,8 @@ type Config struct {
 	AppPort     string `env:"APP_PORT" envDefault:"8080"`
 	AppBaseURL  string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
 	DatabaseURL string `env:"DATABASE_URL,required"`
+
+	SessionSecret string `env:"SESSION_SECRET,required"`
 }
 
 func Load() (Config, error) {

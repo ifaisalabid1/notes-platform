@@ -10,9 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alexedwards/scs/pgxstore"
+	"github.com/alexedwards/scs/v2"
+
 	"github.com/ifaisalabid1/notes-platform/internal/config"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/server"
+	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 func main() {
@@ -34,8 +38,25 @@ func main() {
 	}
 	defer db.Close()
 
+	sessionManager := scs.New()
+	sessionManager.Store = pgxstore.New(db.Pool)
+	sessionManager.Lifetime = 24 * time.Hour
+	sessionManager.Cookie.Name = "notes_platform_session"
+	sessionManager.Cookie.HttpOnly = true
+	sessionManager.Cookie.Persist = true
+	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
+	sessionManager.Cookie.Secure = cfg.IsProduction()
+
+	renderer, err := views.NewRenderer(sessionManager)
+	if err != nil {
+		slog.Error("failed to create template renderer", "error", err)
+		os.Exit(1)
+	}
+
 	router := server.NewRouter(server.Dependencies{
-		DB: db,
+		DB:             db,
+		SessionManager: sessionManager,
+		Renderer:       renderer,
 	})
 
 	httpServer := &http.Server{

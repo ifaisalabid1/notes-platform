@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -149,4 +150,48 @@ func (r *Repository) CountOwners(ctx context.Context) (int, error) {
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func (r *Repository) FindByEmail(ctx context.Context, email string) (Admin, error) {
+	normalizedEmail := normalizeEmail(email)
+
+	if normalizedEmail == "" {
+		return Admin{}, ErrAdminNotFound
+	}
+
+	var found Admin
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			id,
+			name,
+			email,
+			password_hash,
+			role,
+			is_owner,
+			created_by,
+			created_at,
+			updated_at
+		FROM admins
+		WHERE email = $1
+	`, normalizedEmail).Scan(
+		&found.ID,
+		&found.Name,
+		&found.Email,
+		&found.PasswordHash,
+		&found.Role,
+		&found.IsOwner,
+		&found.CreatedBy,
+		&found.CreatedAt,
+		&found.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Admin{}, ErrAdminNotFound
+		}
+
+		return Admin{}, fmt.Errorf("find admin by email: %w", err)
+	}
+
+	return found, nil
 }

@@ -1,0 +1,16 @@
+{
+  "name": "notes-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.30.3",
+  "type": "module",
+  "devDependencies": {
+    "prettier": "^3.8.3",
+    "prettier-plugin-go-template": "^0.0.15"
+  }
+}

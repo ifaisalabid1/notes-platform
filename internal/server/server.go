@@ -4,15 +4,22 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ifaisalabid1/notes-platform/internal/database"
-	"github.com/ifaisalabid1/notes-platform/internal/handlers"
-
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/justinas/nosurf"
+
+	"github.com/ifaisalabid1/notes-platform/internal/admin"
+	"github.com/ifaisalabid1/notes-platform/internal/auth"
+	"github.com/ifaisalabid1/notes-platform/internal/database"
+	"github.com/ifaisalabid1/notes-platform/internal/handlers"
+	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type Dependencies struct {
-	DB *database.DB
+	DB             *database.DB
+	SessionManager *scs.SessionManager
+	Renderer       *views.Renderer
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -24,9 +31,40 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	healthHandler := handlers.NewHealthHandler(deps.DB)
+	adminRepo := admin.NewRepository(deps.DB.Pool)
+	adminAuthHandler := handlers.NewAdminAuthHandler(
+		adminRepo,
+		deps.SessionManager,
+		deps.Renderer,
+	)
+
+	authMiddleware := auth.NewMiddleware(deps.SessionManager)
 
 	r.Get("/healthz", healthHandler.Check)
 	r.Get("/readyz", healthHandler.Ready)
 
-	return r
+	r.Get("/admin/login", adminAuthHandler.ShowLogin)
+	r.Post("/admin/login", adminAuthHandler.Login)
+
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.RequireAdmin)
+
+		r.Get("/admin/dashboard", adminAuthHandler.Dashboard)
+		r.Post("/admin/logout", adminAuthHandler.Logout)
+	})
+
+	return deps.SessionManager.LoadAndSave(noSurf(r))
+}
+
+func noSurf(next http.Handler) http.Handler {
+	csrfHandler := nosurf.New(next)
+
+	csrfHandler.SetBaseCookie(http.Cookie{
+		HttpOnly: true,
+		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
+		Secure:   false,
+	})
+
+	return csrfHandler
 }

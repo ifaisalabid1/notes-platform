@@ -1,0 +1,12 @@
+{{ define "content" }}
+  <section>
+    <h1>Admin Dashboard</h1>
+
+    <p>You are logged in.</p>
+
+    <form method="post" action="/admin/logout">
+      <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+      <button type="submit">Logout</button>
+    </form>
+  </section>
+{{ end }}
