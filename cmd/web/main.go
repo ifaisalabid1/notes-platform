@@ -18,6 +18,7 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/server"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
+	"github.com/ifaisalabid1/notes-platform/internal/watermark"
 )
 
 func main() {
@@ -51,6 +52,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	pdfWatermarker, err := watermark.NewPDFWatermarker(cfg.PDFWatermarkText())
+	if err != nil {
+		slog.Error("failed to create pdf watermarker", "error", err)
+		os.Exit(1)
+	}
+
 	sessionManager := scs.New()
 	sessionManager.Store = pgxstore.New(db.Pool)
 	sessionManager.Lifetime = 24 * time.Hour
@@ -69,6 +76,7 @@ func main() {
 	router := server.NewRouter(server.Dependencies{
 		DB:             db,
 		R2:             r2Client,
+		PDFWatermarker: pdfWatermarker,
 		SessionManager: sessionManager,
 		Renderer:       renderer,
 	})

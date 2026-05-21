@@ -16,12 +16,14 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/uploads"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
+	"github.com/ifaisalabid1/notes-platform/internal/watermark"
 )
 
 type AdminNoteHandler struct {
 	chapterRepo    *academic.ChapterRepository
 	noteRepo       *academic.NoteRepository
 	r2             *storage.R2Client
+	pdfWatermarker *watermark.PDFWatermarker
 	sessionManager *scs.SessionManager
 	renderer       *views.Renderer
 }
@@ -30,6 +32,7 @@ func NewAdminNoteHandler(
 	chapterRepo *academic.ChapterRepository,
 	noteRepo *academic.NoteRepository,
 	r2 *storage.R2Client,
+	pdfWatermarker *watermark.PDFWatermarker,
 	sessionManager *scs.SessionManager,
 	renderer *views.Renderer,
 ) *AdminNoteHandler {
@@ -37,6 +40,7 @@ func NewAdminNoteHandler(
 		chapterRepo:    chapterRepo,
 		noteRepo:       noteRepo,
 		r2:             r2,
+		pdfWatermarker: pdfWatermarker,
 		sessionManager: sessionManager,
 		renderer:       renderer,
 	}
@@ -120,11 +124,28 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 	storedFileName := buildStoredFileName(noteID, validatedFile.OriginalFileName)
 	storageKey := buildNoteStorageKey(chapterID, noteID, storedFileName)
 
+	fileData := validatedFile.Data
+	fileSizeBytes := validatedFile.SizeBytes
+	isWatermarked := false
+
+	if validatedFile.IsPDF {
+		watermarkedPDF, err := h.pdfWatermarker.Apply(validatedFile.Data)
+		if err != nil {
+			slog.Error("failed to watermark pdf", "error", err)
+			h.renderIndexWithError(w, r, "Failed to watermark PDF.")
+			return
+		}
+
+		fileData = watermarkedPDF.Data
+		fileSizeBytes = int64(len(watermarkedPDF.Data))
+		isWatermarked = true
+	}
+
 	_, err = h.r2.UploadObject(r.Context(), storage.UploadObjectParams{
 		Key:         storageKey,
-		Body:        uploads.Reader(validatedFile.Data),
+		Body:        uploads.Reader(fileData),
 		ContentType: validatedFile.ContentType,
-		SizeBytes:   validatedFile.SizeBytes,
+		SizeBytes:   fileSizeBytes,
 	})
 	if err != nil {
 		slog.Error("failed to upload note file to r2", "error", err)
@@ -140,9 +161,9 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 		StoredFileName:   storedFileName,
 		StorageKey:       storageKey,
 		ContentType:      validatedFile.ContentType,
-		FileSizeBytes:    validatedFile.SizeBytes,
+		FileSizeBytes:    fileSizeBytes,
 		IsPDF:            validatedFile.IsPDF,
-		IsWatermarked:    false,
+		IsWatermarked:    isWatermarked,
 		SortOrder:        sortOrder,
 		IsPublished:      isPublished,
 		UploadedBy:       uploadedBy,

@@ -16,11 +16,13 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/handlers"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
+	"github.com/ifaisalabid1/notes-platform/internal/watermark"
 )
 
 type Dependencies struct {
 	DB             *database.DB
 	R2             *storage.R2Client
+	PDFWatermarker *watermark.PDFWatermarker
 	SessionManager *scs.SessionManager
 	Renderer       *views.Renderer
 }
@@ -88,6 +90,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		chapterRepo,
 		noteRepo,
 		deps.R2,
+		deps.PDFWatermarker,
 		deps.SessionManager,
 		deps.Renderer,
 	)

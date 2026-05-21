@@ -20,6 +20,10 @@ type Config struct {
 	R2AccessKeyID     string `env:"R2_ACCESS_KEY_ID,required"`
 	R2SecretAccessKey string `env:"R2_SECRET_ACCESS_KEY,required"`
 	R2BucketName      string `env:"R2_BUCKET_NAME,required"`
+
+	BrandName     string `env:"BRAND_NAME" envDefault:"Notes Platform"`
+	BrandURL      string `env:"BRAND_URL" envDefault:""`
+	WatermarkText string `env:"WATERMARK_TEXT" envDefault:""`
 }
 
 func Load() (Config, error) {
@@ -43,4 +47,16 @@ func (c Config) IsProduction() bool {
 
 func (c Config) R2Endpoint() string {
 	return "https://" + c.R2AccountID + ".r2.cloudflarestorage.com"
+}
+
+func (c Config) PDFWatermarkText() string {
+	if c.WatermarkText != "" {
+		return c.WatermarkText
+	}
+
+	if c.BrandURL != "" {
+		return c.BrandName + " • " + c.BrandURL
+	}
+
+	return c.BrandName
 }
