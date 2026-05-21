@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ifaisalabid1/notes-platform/internal/config"
+	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/server"
 )
 
@@ -24,9 +25,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := context.Background()
+
+	db, err := database.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		slog.Error("failed to connect database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	router := server.NewRouter(server.Dependencies{
+		DB: db,
+	})
+
 	httpServer := &http.Server{
 		Addr:         cfg.Addr(),
-		Handler:      server.NewRouter(),
+		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -53,10 +67,10 @@ func main() {
 	case sig := <-shutdown:
 		slog.Info("shutdown started", "signal", sig.String())
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		if err := httpServer.Shutdown(ctx); err != nil {
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			slog.Error("graceful shutdown failed", "error", err)
 
 			if closeErr := httpServer.Close(); closeErr != nil {
