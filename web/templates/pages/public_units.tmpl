@@ -1,33 +1,66 @@
 {{ define "content" }}
-  <section>
-    <p>
-      <a href="/">Classes</a> /
-      <a href="/classes/{{ .Data.Class.Slug }}">{{ .Data.Class.Name }}</a> /
-      <a
-        href="/classes/{{ .Data.Class.Slug }}/semesters/{{ .Data.Semester.Slug }}"
-        >{{ .Data.Semester.Name }}</a
-      >
-    </p>
+  <section class="space-y-8">
+    <div>
+      <nav class="text-sm text-academic-500">
+        <a href="/" class="nav-link">Classes</a>
+        <span class="mx-2">/</span>
+        <a href="/classes/{{ .Data.Class.Slug }}" class="nav-link"
+          >{{ .Data.Class.Name }}</a
+        >
+        <span class="mx-2">/</span>
+        <a
+          href="/classes/{{ .Data.Class.Slug }}/semesters/{{ .Data.Semester.Slug }}"
+          class="nav-link"
+          >{{ .Data.Semester.Name }}</a
+        >
+        <span class="mx-2">/</span>
+        <span>{{ .Data.Subject.Name }}</span>
+      </nav>
 
-    <h1>{{ .Data.Subject.Name }}</h1>
+      <h1 class="page-title mt-4">{{ .Data.Subject.Name }}</h1>
+
+      {{ if .Data.Subject.Description }}
+        <p class="page-subtitle">{{ .Data.Subject.Description }}</p>
+      {{ else }}
+        <p class="page-subtitle">Choose a unit to continue.</p>
+      {{ end }}
+    </div>
 
     {{ with .Data.Units }}
-      <ul>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {{ range . }}
-          <li>
-            <a
-              href="/classes/{{ $.Data.Class.Slug }}/semesters/{{ $.Data.Semester.Slug }}/subjects/{{ $.Data.Subject.Slug }}/units/{{ .Slug }}"
-            >
-              {{ .Name }}
-            </a>
-            {{ if .Description }}
-              <p>{{ .Description }}</p>
-            {{ end }}
-          </li>
+          <a
+            href="/classes/{{ $.Data.Class.Slug }}/semesters/{{ $.Data.Semester.Slug }}/subjects/{{ $.Data.Subject.Slug }}/units/{{ .Slug }}"
+            class="card group no-underline hover:border-brand-300 hover:shadow-md"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  class="text-lg font-semibold text-academic-900 group-hover:text-brand-700"
+                >
+                  {{ .Name }}
+                </h2>
+
+                {{ if .Description }}
+                  <p class="mt-2 text-sm leading-6 text-academic-600">
+                    {{ .Description }}
+                  </p>
+                {{ else }}
+                  <p class="mt-2 text-sm leading-6 text-academic-600">
+                    View chapters for this unit.
+                  </p>
+                {{ end }}
+              </div>
+
+              <span class="badge">Unit</span>
+            </div>
+          </a>
         {{ end }}
-      </ul>
+      </div>
     {{ else }}
-      <p>No units are available yet.</p>
+      <div class="card-muted">
+        <p class="text-sm text-academic-600">No units are available yet.</p>
+      </div>
     {{ end }}
   </section>
 {{ end }}
