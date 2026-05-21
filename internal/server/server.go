@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/justinas/nosurf"
 
+	"github.com/ifaisalabid1/notes-platform/internal/academic"
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
@@ -31,7 +32,10 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	healthHandler := handlers.NewHealthHandler(deps.DB)
+
 	adminRepo := admin.NewRepository(deps.DB.Pool)
+	classRepo := academic.NewClassRepository(deps.DB.Pool)
+
 	adminAuthHandler := handlers.NewAdminAuthHandler(
 		adminRepo,
 		deps.SessionManager,
@@ -41,6 +45,11 @@ func NewRouter(deps Dependencies) http.Handler {
 	adminManagementHandler := handlers.NewAdminManagementHandler(
 		adminRepo,
 		deps.SessionManager,
+		deps.Renderer,
+	)
+
+	adminClassHandler := handlers.NewAdminClassHandler(
+		classRepo,
 		deps.Renderer,
 	)
 
@@ -57,6 +66,9 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/dashboard", adminAuthHandler.Dashboard)
 		r.Post("/admin/logout", adminAuthHandler.Logout)
+
+		r.Get("/admin/classes", adminClassHandler.Index)
+		r.Post("/admin/classes", adminClassHandler.Store)
 
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireOwner)

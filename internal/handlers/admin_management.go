@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
@@ -122,14 +120,4 @@ func (h *AdminManagementHandler) renderIndexWithError(w http.ResponseWriter, r *
 			Admins: admins,
 		},
 	})
-}
-
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505"
-	}
-
-	return false
 }
