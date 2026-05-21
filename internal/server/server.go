@@ -38,6 +38,12 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.Renderer,
 	)
 
+	adminManagementHandler := handlers.NewAdminManagementHandler(
+		adminRepo,
+		deps.SessionManager,
+		deps.Renderer,
+	)
+
 	authMiddleware := auth.NewMiddleware(deps.SessionManager)
 
 	r.Get("/healthz", healthHandler.Check)
@@ -51,6 +57,13 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/dashboard", adminAuthHandler.Dashboard)
 		r.Post("/admin/logout", adminAuthHandler.Logout)
+
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireOwner)
+
+			r.Get("/admin/users", adminManagementHandler.Index)
+			r.Post("/admin/users", adminManagementHandler.Store)
+		})
 	})
 
 	return deps.SessionManager.LoadAndSave(noSurf(r))

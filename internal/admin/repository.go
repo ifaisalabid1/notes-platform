@@ -52,6 +52,13 @@ type CreateOwnerParams struct {
 	PasswordHash string
 }
 
+type CreateAdminParams struct {
+	Name         string
+	Email        string
+	PasswordHash string
+	CreatedBy    uuid.UUID
+}
+
 func (r *Repository) CreateOwner(ctx context.Context, params CreateOwnerParams) (Admin, error) {
 	name := strings.TrimSpace(params.Name)
 	email := normalizeEmail(params.Email)
@@ -194,4 +201,114 @@ func (r *Repository) FindByEmail(ctx context.Context, email string) (Admin, erro
 	}
 
 	return found, nil
+}
+
+func (r *Repository) CreateAdmin(ctx context.Context, params CreateAdminParams) (Admin, error) {
+	name := strings.TrimSpace(params.Name)
+	email := normalizeEmail(params.Email)
+
+	if name == "" {
+		return Admin{}, errors.New("name is required")
+	}
+
+	if email == "" {
+		return Admin{}, errors.New("email is required")
+	}
+
+	if params.PasswordHash == "" {
+		return Admin{}, errors.New("password hash is required")
+	}
+
+	if params.CreatedBy == uuid.Nil {
+		return Admin{}, errors.New("created by is required")
+	}
+
+	var created Admin
+
+	err := r.pool.QueryRow(ctx, `
+		INSERT INTO admins (
+			name,
+			email,
+			password_hash,
+			role,
+			is_owner,
+			created_by
+		)
+		VALUES ($1, $2, $3, $4, FALSE, $5)
+		RETURNING
+			id,
+			name,
+			email,
+			password_hash,
+			role,
+			is_owner,
+			created_by,
+			created_at,
+			updated_at
+	`, name, email, params.PasswordHash, RoleAdmin, params.CreatedBy).Scan(
+		&created.ID,
+		&created.Name,
+		&created.Email,
+		&created.PasswordHash,
+		&created.Role,
+		&created.IsOwner,
+		&created.CreatedBy,
+		&created.CreatedAt,
+		&created.UpdatedAt,
+	)
+	if err != nil {
+		return Admin{}, fmt.Errorf("create admin: %w", err)
+	}
+
+	return created, nil
+}
+
+func (r *Repository) List(ctx context.Context) ([]Admin, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			id,
+			name,
+			email,
+			password_hash,
+			role,
+			is_owner,
+			created_by,
+			created_at,
+			updated_at
+		FROM admins
+		ORDER BY is_owner DESC, created_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list admins: %w", err)
+	}
+	defer rows.Close()
+
+	admins := make([]Admin, 0)
+
+	for rows.Next() {
+		var item Admin
+
+		err := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&item.Email,
+			&item.PasswordHash,
+			&item.Role,
+			&item.IsOwner,
+			&item.CreatedBy,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan admin: %w", err)
+		}
+
+		admins = append(admins, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate admins: %w", err)
+	}
+
+	return admins, nil
 }

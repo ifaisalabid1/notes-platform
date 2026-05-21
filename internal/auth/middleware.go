@@ -27,3 +27,15 @@ func (m *Middleware) RequireAdmin(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func (m *Middleware) RequireOwner(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		isOwner := m.sessionManager.GetBool(r.Context(), "admin_is_owner")
+		if !isOwner {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}

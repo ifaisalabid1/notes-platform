@@ -1,0 +1,91 @@
+{{ define "content" }}
+  <section>
+    <h1>Admins</h1>
+
+    <p>Only the owner super admin can create new admins.</p>
+
+    {{ if .Error }}
+      <p role="alert">{{ .Error }}</p>
+    {{ end }}
+
+
+    <section>
+      <h2>Create Admin</h2>
+
+      <form method="post" action="/admin/users">
+        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+
+        <div>
+          <label for="name">Name</label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autocomplete="name"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="password">Temporary Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            minlength="12"
+            required
+          />
+        </div>
+
+        <button type="submit">Create Admin</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Existing Admins</h2>
+
+      {{ with .Data.Admins }}
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Owner</th>
+              <th>Created At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{ range . }}
+              <tr>
+                <td>{{ .Name }}</td>
+                <td>{{ .Email }}</td>
+                <td>{{ .Role }}</td>
+                <td>{{ if .IsOwner }}Yes{{ else }}No{{ end }}</td>
+                <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+              </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      {{ else }}
+        <p>No admins found.</p>
+      {{ end }}
+    </section>
+
+    <p>
+      <a href="/admin/dashboard">Back to dashboard</a>
+    </p>
+  </section>
+{{ end }}
