@@ -1,0 +1,112 @@
+{{ define "content" }}
+  <section>
+    <h1>Chapters</h1>
+
+    <p>Create chapters under a unit.</p>
+
+    {{ if .Error }}
+      <p role="alert">{{ .Error }}</p>
+    {{ end }}
+
+
+    <section>
+      <h2>Create Chapter</h2>
+
+      <form method="post" action="/admin/chapters">
+        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+
+        <div>
+          <label for="unit_id">Unit</label>
+          <select id="unit_id" name="unit_id" required>
+            <option value="">Select unit</option>
+            {{ range .Data.Units }}
+              <option value="{{ .ID }}">
+                {{ .ClassName }} - {{ .SemesterName }} - {{ .SubjectName }} -
+                {{ .Name }}
+              </option>
+            {{ end }}
+          </select>
+        </div>
+
+        <div>
+          <label for="name">Chapter Name</label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            placeholder="Example: Introduction to C"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="description">Description</label>
+          <textarea
+            id="description"
+            name="description"
+            rows="3"
+            placeholder="Optional short description"
+          ></textarea>
+        </div>
+
+        <div>
+          <label for="sort_order">Sort Order</label>
+          <input id="sort_order" name="sort_order" type="number" value="0" />
+        </div>
+
+        <div>
+          <label>
+            <input name="is_published" type="checkbox" />
+            Published
+          </label>
+        </div>
+
+        <button type="submit">Create Chapter</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Existing Chapters</h2>
+
+      {{ with .Data.Chapters }}
+        <table>
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Semester</th>
+              <th>Subject</th>
+              <th>Unit</th>
+              <th>Chapter</th>
+              <th>Slug</th>
+              <th>Published</th>
+              <th>Sort Order</th>
+              <th>Created At</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {{ range . }}
+              <tr>
+                <td>{{ .ClassName }}</td>
+                <td>{{ .SemesterName }}</td>
+                <td>{{ .SubjectName }}</td>
+                <td>{{ .UnitName }}</td>
+                <td>{{ .Name }}</td>
+                <td>{{ .Slug }}</td>
+                <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
+                <td>{{ .SortOrder }}</td>
+                <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+              </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      {{ else }}
+        <p>No chapters found.</p>
+      {{ end }}
+    </section>
+
+    <p>
+      <a href="/admin/dashboard">Back to dashboard</a>
+    </p>
+  </section>
+{{ end }}
