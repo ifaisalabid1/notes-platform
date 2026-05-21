@@ -1,10 +1,11 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter/wght.css";
 
 @source "../../templates/**/*.tmpl";
 @source "../../templates/**/*.html";
 
 @theme {
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
   --color-brand-50: #eff6ff;
   --color-brand-100: #dbeafe;

@@ -1,39 +1,50 @@
 {{ define "content" }}
-  <section>
-    <h1>Semesters</h1>
-
-    <p>Create semesters under a class.</p>
+  <section class="space-y-8">
+    <div>
+      <span class="badge">Content Management</span>
+      <h1 class="page-title mt-4">Semesters</h1>
+      <p class="page-subtitle">Create semesters under a class.</p>
+    </div>
 
     {{ if .Error }}
-      <p role="alert">{{ .Error }}</p>
+      <div class="alert-error" role="alert">{{ .Error }}</div>
     {{ end }}
 
 
-    <section>
-      <h2>Create Semester</h2>
+    <section class="card">
+      <h2 class="section-title">Create Semester</h2>
 
-      <form method="post" action="/admin/semesters">
+      <form method="post" action="/admin/semesters" class="mt-6 space-y-5">
         <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
 
-        <div>
-          <label for="class_id">Class</label>
-          <select id="class_id" name="class_id" required>
-            <option value="">Select class</option>
-            {{ range .Data.Classes }}
-              <option value="{{ .ID }}">{{ .Name }}</option>
-            {{ end }}
-          </select>
+        <div class="form-grid">
+          <div>
+            <label for="class_id">Class</label>
+            <select id="class_id" name="class_id" required>
+              <option value="">Select class</option>
+              {{ range .Data.Classes }}
+                <option value="{{ .ID }}">{{ .Name }}</option>
+              {{ end }}
+            </select>
+          </div>
+
+          <div>
+            <label for="name">Semester Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              placeholder="Example: Semester 1"
+              required
+            />
+          </div>
         </div>
 
-        <div>
-          <label for="name">Semester Name</label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            placeholder="Example: Semester 1"
-            required
-          />
+        <div class="form-grid">
+          <div>
+            <label for="sort_order">Sort Order</label>
+            <input id="sort_order" name="sort_order" type="number" value="0" />
+          </div>
         </div>
 
         <div>
@@ -46,58 +57,59 @@
           ></textarea>
         </div>
 
-        <div>
-          <label for="sort_order">Sort Order</label>
-          <input id="sort_order" name="sort_order" type="number" value="0" />
-        </div>
+        <label class="inline-flex items-center gap-2">
+          <input
+            name="is_published"
+            type="checkbox"
+            class="h-4 w-4 rounded border-academic-300"
+          />
+          <span>Published</span>
+        </label>
 
         <div>
-          <label>
-            <input name="is_published" type="checkbox" />
-            Published
-          </label>
+          <button type="submit" class="btn-primary">Create Semester</button>
         </div>
-
-        <button type="submit">Create Semester</button>
       </form>
     </section>
 
-    <section>
-      <h2>Existing Semesters</h2>
+    <section class="space-y-4">
+      <h2 class="section-title">Existing Semesters</h2>
 
       {{ with .Data.Semesters }}
-        <table>
-          <thead>
-            <tr>
-              <th>Class</th>
-              <th>Semester</th>
-              <th>Slug</th>
-              <th>Published</th>
-              <th>Sort Order</th>
-              <th>Created At</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {{ range . }}
+        <div class="table-wrap overflow-x-auto">
+          <table>
+            <thead>
               <tr>
-                <td>{{ .ClassName }}</td>
-                <td>{{ .Name }}</td>
-                <td>{{ .Slug }}</td>
-                <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
-                <td>{{ .SortOrder }}</td>
-                <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                <th>Class</th>
+                <th>Semester</th>
+                <th>Slug</th>
+                <th>Published</th>
+                <th>Sort Order</th>
+                <th>Created At</th>
               </tr>
-            {{ end }}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {{ range . }}
+                <tr>
+                  <td>{{ .ClassName }}</td>
+                  <td class="font-medium text-academic-900">{{ .Name }}</td>
+                  <td>{{ .Slug }}</td>
+                  <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
+                  <td>{{ .SortOrder }}</td>
+                  <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                </tr>
+              {{ end }}
+            </tbody>
+          </table>
+        </div>
       {{ else }}
-        <p>No semesters found.</p>
+        <div class="card-muted">
+          <p class="text-sm text-academic-600">No semesters found.</p>
+        </div>
       {{ end }}
     </section>
 
-    <p>
-      <a href="/admin/dashboard">Back to dashboard</a>
-    </p>
+    <a href="/admin/dashboard" class="btn-secondary">Back to dashboard</a>
   </section>
 {{ end }}

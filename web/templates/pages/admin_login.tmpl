@@ -1,38 +1,54 @@
 {{ define "content" }}
-  <section>
-    <h1>Admin Login</h1>
+  <section class="mx-auto max-w-md">
+    <div class="card">
+      <div class="text-center">
+        <span
+          class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-700 text-sm font-bold text-white"
+        >
+          NP
+        </span>
 
-    {{ if .Error }}
-      <p role="alert">{{ .Error }}</p>
-    {{ end }}
+        <h1 class="mt-5 text-2xl font-bold tracking-tight text-academic-900">
+          Admin Login
+        </h1>
 
-
-    <form method="post" action="/admin/login">
-      <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
-
-      <div>
-        <label for="email">Email</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autocomplete="email"
-          required
-        />
+        <p class="mt-2 text-sm text-academic-600">
+          Sign in to manage classes, subjects, chapters, and notes.
+        </p>
       </div>
 
-      <div>
-        <label for="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          required
-        />
-      </div>
+      {{ if .Error }}
+        <div class="mt-6 alert-error" role="alert">{{ .Error }}</div>
+      {{ end }}
 
-      <button type="submit">Login</button>
-    </form>
+
+      <form method="post" action="/admin/login" class="mt-6 space-y-5">
+        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+
+        <div>
+          <label for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn-primary w-full">Login</button>
+      </form>
+    </div>
   </section>
 {{ end }}

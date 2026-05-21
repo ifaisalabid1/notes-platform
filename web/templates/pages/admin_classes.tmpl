@@ -1,29 +1,40 @@
 {{ define "content" }}
-  <section>
-    <h1>Classes</h1>
-
-    <p>Create the top-level classes for your notes platform.</p>
+  <section class="space-y-8">
+    <div>
+      <span class="badge">Content Management</span>
+      <h1 class="page-title mt-4">Classes</h1>
+      <p class="page-subtitle">
+        Create the top-level classes for your notes platform.
+      </p>
+    </div>
 
     {{ if .Error }}
-      <p role="alert">{{ .Error }}</p>
+      <div class="alert-error" role="alert">{{ .Error }}</div>
     {{ end }}
 
 
-    <section>
-      <h2>Create Class</h2>
+    <section class="card">
+      <h2 class="section-title">Create Class</h2>
 
-      <form method="post" action="/admin/classes">
+      <form method="post" action="/admin/classes" class="mt-6 space-y-5">
         <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
 
-        <div>
-          <label for="name">Class Name</label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            placeholder="Example: BCA, MCA, Class 10"
-            required
-          />
+        <div class="form-grid">
+          <div>
+            <label for="name">Class Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              placeholder="Example: BCA, MCA, Class 10"
+              required
+            />
+          </div>
+
+          <div>
+            <label for="sort_order">Sort Order</label>
+            <input id="sort_order" name="sort_order" type="number" value="0" />
+          </div>
         </div>
 
         <div>
@@ -36,56 +47,57 @@
           ></textarea>
         </div>
 
-        <div>
-          <label for="sort_order">Sort Order</label>
-          <input id="sort_order" name="sort_order" type="number" value="0" />
-        </div>
+        <label class="inline-flex items-center gap-2">
+          <input
+            name="is_published"
+            type="checkbox"
+            class="h-4 w-4 rounded border-academic-300"
+          />
+          <span>Published</span>
+        </label>
 
         <div>
-          <label>
-            <input name="is_published" type="checkbox" />
-            Published
-          </label>
+          <button type="submit" class="btn-primary">Create Class</button>
         </div>
-
-        <button type="submit">Create Class</button>
       </form>
     </section>
 
-    <section>
-      <h2>Existing Classes</h2>
+    <section class="space-y-4">
+      <h2 class="section-title">Existing Classes</h2>
 
       {{ with .Data.Classes }}
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Slug</th>
-              <th>Published</th>
-              <th>Sort Order</th>
-              <th>Created At</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {{ range . }}
+        <div class="table-wrap overflow-x-auto">
+          <table>
+            <thead>
               <tr>
-                <td>{{ .Name }}</td>
-                <td>{{ .Slug }}</td>
-                <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
-                <td>{{ .SortOrder }}</td>
-                <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Published</th>
+                <th>Sort Order</th>
+                <th>Created At</th>
               </tr>
-            {{ end }}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {{ range . }}
+                <tr>
+                  <td class="font-medium text-academic-900">{{ .Name }}</td>
+                  <td>{{ .Slug }}</td>
+                  <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
+                  <td>{{ .SortOrder }}</td>
+                  <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                </tr>
+              {{ end }}
+            </tbody>
+          </table>
+        </div>
       {{ else }}
-        <p>No classes found.</p>
+        <div class="card-muted">
+          <p class="text-sm text-academic-600">No classes found.</p>
+        </div>
       {{ end }}
     </section>
 
-    <p>
-      <a href="/admin/dashboard">Back to dashboard</a>
-    </p>
+    <a href="/admin/dashboard" class="btn-secondary">Back to dashboard</a>
   </section>
 {{ end }}

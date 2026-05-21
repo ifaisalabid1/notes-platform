@@ -1,40 +1,46 @@
 {{ define "content" }}
-  <section>
-    <h1>Admins</h1>
-
-    <p>Only the owner super admin can create new admins.</p>
+  <section class="space-y-8">
+    <div>
+      <span class="badge">Owner Only</span>
+      <h1 class="page-title mt-4">Admins</h1>
+      <p class="page-subtitle">
+        Only the owner super admin can create new admins.
+      </p>
+    </div>
 
     {{ if .Error }}
-      <p role="alert">{{ .Error }}</p>
+      <div class="alert-error" role="alert">{{ .Error }}</div>
     {{ end }}
 
 
-    <section>
-      <h2>Create Admin</h2>
+    <section class="card">
+      <h2 class="section-title">Create Admin</h2>
 
-      <form method="post" action="/admin/users">
+      <form method="post" action="/admin/users" class="mt-6 space-y-5">
         <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
 
-        <div>
-          <label for="name">Name</label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            autocomplete="name"
-            required
-          />
-        </div>
+        <div class="form-grid">
+          <div>
+            <label for="name">Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              autocomplete="name"
+              required
+            />
+          </div>
 
-        <div>
-          <label for="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autocomplete="email"
-            required
-          />
+          <div>
+            <label for="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+            />
+          </div>
         </div>
 
         <div>
@@ -47,45 +53,49 @@
             minlength="12"
             required
           />
+          <p class="mt-2 text-xs text-academic-500">Minimum 12 characters.</p>
         </div>
 
-        <button type="submit">Create Admin</button>
+        <button type="submit" class="btn-primary">Create Admin</button>
       </form>
     </section>
 
-    <section>
-      <h2>Existing Admins</h2>
+    <section class="space-y-4">
+      <h2 class="section-title">Existing Admins</h2>
 
       {{ with .Data.Admins }}
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Owner</th>
-              <th>Created At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{ range . }}
+        <div class="table-wrap overflow-x-auto">
+          <table>
+            <thead>
               <tr>
-                <td>{{ .Name }}</td>
-                <td>{{ .Email }}</td>
-                <td>{{ .Role }}</td>
-                <td>{{ if .IsOwner }}Yes{{ else }}No{{ end }}</td>
-                <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Owner</th>
+                <th>Created At</th>
               </tr>
-            {{ end }}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {{ range . }}
+                <tr>
+                  <td class="font-medium text-academic-900">{{ .Name }}</td>
+                  <td>{{ .Email }}</td>
+                  <td>{{ .Role }}</td>
+                  <td>{{ if .IsOwner }}Yes{{ else }}No{{ end }}</td>
+                  <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                </tr>
+              {{ end }}
+            </tbody>
+          </table>
+        </div>
       {{ else }}
-        <p>No admins found.</p>
+        <div class="card-muted">
+          <p class="text-sm text-academic-600">No admins found.</p>
+        </div>
       {{ end }}
     </section>
 
-    <p>
-      <a href="/admin/dashboard">Back to dashboard</a>
-    </p>
+    <a href="/admin/dashboard" class="btn-secondary">Back to dashboard</a>
   </section>
 {{ end }}

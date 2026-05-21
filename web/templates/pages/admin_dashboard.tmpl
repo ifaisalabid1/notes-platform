@@ -1,12 +1,113 @@
 {{ define "content" }}
-  <section>
-    <h1>Admin Dashboard</h1>
+  <section class="space-y-8">
+    <div
+      class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"
+    >
+      <div>
+        <span class="badge">Admin Area</span>
 
-    <p>You are logged in.</p>
+        <h1 class="page-title mt-4">Dashboard</h1>
 
-    <form method="post" action="/admin/logout">
-      <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
-      <button type="submit">Logout</button>
-    </form>
+        <p class="page-subtitle">
+          Manage your notes platform content, uploads, admins, and storage
+          checks.
+        </p>
+      </div>
+
+      <form method="post" action="/admin/logout">
+        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+        <button type="submit" class="btn-secondary">Logout</button>
+      </form>
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <a
+        href="/admin/classes"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Step 1</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">Classes</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Create and publish top-level classes.
+        </p>
+      </a>
+
+      <a
+        href="/admin/semesters"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Step 2</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">Semesters</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Add semesters under each class.
+        </p>
+      </a>
+
+      <a
+        href="/admin/subjects"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Step 3</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">Subjects</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Organize subjects inside semesters.
+        </p>
+      </a>
+
+      <a
+        href="/admin/units"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Step 4</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">Units</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Split subjects into units.
+        </p>
+      </a>
+
+      <a
+        href="/admin/chapters"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Step 5</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">Chapters</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Add chapters under units.
+        </p>
+      </a>
+
+      <a
+        href="/admin/notes"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Step 6</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">Notes</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Upload files and publish notes.
+        </p>
+      </a>
+
+      <a
+        href="/admin/users"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Owner only</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">Admins</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Create and review admin users.
+        </p>
+      </a>
+
+      <a
+        href="/admin/storage/readyz"
+        class="card no-underline hover:border-brand-300 hover:shadow-md"
+      >
+        <span class="badge">Health</span>
+        <h2 class="mt-4 text-lg font-semibold text-academic-900">R2 Storage</h2>
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          Check private Cloudflare R2 connectivity.
+        </p>
+      </a>
+    </div>
   </section>
 {{ end }}
