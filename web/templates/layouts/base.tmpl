@@ -5,15 +5,59 @@
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{{ if .Title }}{{ .Title }} -{{ end }}Notes Platform</title>
+      <link rel="stylesheet" href="/static/css/app.css" />
     </head>
     <body>
-      <main>
-        {{ if .Flash }}
-          <div role="status">{{ .Flash }}</div>
-        {{ end }}
+      <div class="app-shell">
+        <header class="border-b border-academic-200 bg-white">
+          <div
+            class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8"
+          >
+            <a
+              href="/"
+              class="flex items-center gap-2 text-academic-900 no-underline hover:no-underline"
+            >
+              <span
+                class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-700 text-sm font-bold text-white"
+              >
+                NP
+              </span>
+              <span class="text-base font-bold">Notes Platform</span>
+            </a>
 
-        {{ template "content" . }}
-      </main>
+            <nav class="flex items-center gap-5">
+              <a class="nav-link" href="/">Browse Notes</a>
+
+              {{ if .IsAuthenticated }}
+                <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+                <a class="nav-link" href="/admin/notes">Notes</a>
+              {{ else }}
+                <a class="nav-link" href="/admin/login">Admin Login</a>
+              {{ end }}
+            </nav>
+          </div>
+        </header>
+
+        <main>
+          <div class="container-page">
+            {{ if .Flash }}
+              <div class="mb-6 alert-success" role="status">{{ .Flash }}</div>
+            {{ end }}
+
+            {{ template "content" . }}
+          </div>
+        </main>
+
+        <footer class="border-t border-academic-200 bg-white">
+          <div
+            class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-sm text-academic-500 sm:px-6 lg:px-8"
+          >
+            <p>
+              &copy; Notes Platform. Built for students and classroom notes.
+            </p>
+          </div>
+        </footer>
+      </div>
     </body>
   </html>
 {{ end }}

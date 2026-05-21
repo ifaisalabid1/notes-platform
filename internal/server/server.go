@@ -37,6 +37,9 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
+	fileServer := http.FileServer(http.Dir("web/static"))
+	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
+
 	healthHandler := handlers.NewHealthHandler(deps.DB)
 
 	adminRepo := admin.NewRepository(deps.DB.Pool)

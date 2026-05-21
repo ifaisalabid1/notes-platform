@@ -3,14 +3,19 @@
   "version": "1.0.0",
   "description": "",
   "main": "src/index.ts",
-  "scripts": {},
+  "scripts": {
+    "css:build": "tailwindcss -i ./web/assets/css/app.css -o ./web/static/css/app.css --minify",
+    "css:watch": "tailwindcss -i ./web/assets/css/app.css -o ./web/static/css/app.css --watch"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.30.3",
   "type": "module",
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.0",
     "prettier": "^3.8.3",
-    "prettier-plugin-go-template": "^0.0.15"
+    "prettier-plugin-go-template": "^0.0.15",
+    "tailwindcss": "^4.3.0"
   }
 }
