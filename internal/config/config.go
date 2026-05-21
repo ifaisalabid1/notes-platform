@@ -24,6 +24,10 @@ type Config struct {
 	BrandName     string `env:"BRAND_NAME" envDefault:"Notes Platform"`
 	BrandURL      string `env:"BRAND_URL" envDefault:""`
 	WatermarkText string `env:"WATERMARK_TEXT" envDefault:""`
+
+	FileProxyBaseURL       string `env:"FILE_PROXY_BASE_URL,required"`
+	FileProxySecret        string `env:"FILE_PROXY_SECRET,required"`
+	FileProxyURLTTLSeconds int    `env:"FILE_PROXY_URL_TTL_SECONDS" envDefault:"300"`
 }
 
 func Load() (Config, error) {

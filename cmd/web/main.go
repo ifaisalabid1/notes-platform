@@ -15,6 +15,7 @@ import (
 
 	"github.com/ifaisalabid1/notes-platform/internal/config"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
+	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
 	"github.com/ifaisalabid1/notes-platform/internal/server"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
@@ -58,6 +59,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	fileProxySigner, err := fileproxy.NewSigner(fileproxy.Config{
+		BaseURL: cfg.FileProxyBaseURL,
+		Secret:  cfg.FileProxySecret,
+		TTL:     time.Duration(cfg.FileProxyURLTTLSeconds) * time.Second,
+	})
+	if err != nil {
+		slog.Error("failed to create file proxy signer", "error", err)
+		os.Exit(1)
+	}
+
 	sessionManager := scs.New()
 	sessionManager.Store = pgxstore.New(db.Pool)
 	sessionManager.Lifetime = 24 * time.Hour
@@ -74,11 +85,12 @@ func main() {
 	}
 
 	router := server.NewRouter(server.Dependencies{
-		DB:             db,
-		R2:             r2Client,
-		PDFWatermarker: pdfWatermarker,
-		SessionManager: sessionManager,
-		Renderer:       renderer,
+		DB:              db,
+		R2:              r2Client,
+		PDFWatermarker:  pdfWatermarker,
+		FileProxySigner: fileProxySigner,
+		SessionManager:  sessionManager,
+		Renderer:        renderer,
 	})
 
 	httpServer := &http.Server{

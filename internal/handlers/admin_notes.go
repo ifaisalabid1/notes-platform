@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
+	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/uploads"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
@@ -20,12 +21,13 @@ import (
 )
 
 type AdminNoteHandler struct {
-	chapterRepo    *academic.ChapterRepository
-	noteRepo       *academic.NoteRepository
-	r2             *storage.R2Client
-	pdfWatermarker *watermark.PDFWatermarker
-	sessionManager *scs.SessionManager
-	renderer       *views.Renderer
+	chapterRepo     *academic.ChapterRepository
+	noteRepo        *academic.NoteRepository
+	r2              *storage.R2Client
+	pdfWatermarker  *watermark.PDFWatermarker
+	fileProxySigner *fileproxy.Signer
+	sessionManager  *scs.SessionManager
+	renderer        *views.Renderer
 }
 
 func NewAdminNoteHandler(
@@ -33,22 +35,29 @@ func NewAdminNoteHandler(
 	noteRepo *academic.NoteRepository,
 	r2 *storage.R2Client,
 	pdfWatermarker *watermark.PDFWatermarker,
+	fileProxySigner *fileproxy.Signer,
 	sessionManager *scs.SessionManager,
 	renderer *views.Renderer,
 ) *AdminNoteHandler {
 	return &AdminNoteHandler{
-		chapterRepo:    chapterRepo,
-		noteRepo:       noteRepo,
-		r2:             r2,
-		pdfWatermarker: pdfWatermarker,
-		sessionManager: sessionManager,
-		renderer:       renderer,
+		chapterRepo:     chapterRepo,
+		noteRepo:        noteRepo,
+		r2:              r2,
+		pdfWatermarker:  pdfWatermarker,
+		fileProxySigner: fileProxySigner,
+		sessionManager:  sessionManager,
+		renderer:        renderer,
 	}
+}
+
+type AdminNoteListItem struct {
+	Note    academic.Note
+	FileURL string
 }
 
 type AdminNotesPageData struct {
 	Chapters []academic.Chapter
-	Notes    []academic.Note
+	Notes    []AdminNoteListItem
 }
 
 func (h *AdminNoteHandler) Index(w http.ResponseWriter, r *http.Request) {
@@ -210,9 +219,23 @@ func (h *AdminNoteHandler) pageData(r *http.Request) (AdminNotesPageData, error)
 		return AdminNotesPageData{}, err
 	}
 
+	noteItems := make([]AdminNoteListItem, 0, len(notes))
+
+	for _, note := range notes {
+		fileURL, err := h.fileProxySigner.SignedFileURL(note.StorageKey)
+		if err != nil {
+			return AdminNotesPageData{}, fmt.Errorf("sign note file url: %w", err)
+		}
+
+		noteItems = append(noteItems, AdminNoteListItem{
+			Note:    note,
+			FileURL: fileURL,
+		})
+	}
+
 	return AdminNotesPageData{
 		Chapters: chapters,
-		Notes:    notes,
+		Notes:    noteItems,
 	}, nil
 }
 

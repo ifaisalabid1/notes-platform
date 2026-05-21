@@ -13,6 +13,7 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
+	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
 	"github.com/ifaisalabid1/notes-platform/internal/handlers"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
@@ -20,11 +21,12 @@ import (
 )
 
 type Dependencies struct {
-	DB             *database.DB
-	R2             *storage.R2Client
-	PDFWatermarker *watermark.PDFWatermarker
-	SessionManager *scs.SessionManager
-	Renderer       *views.Renderer
+	DB              *database.DB
+	R2              *storage.R2Client
+	PDFWatermarker  *watermark.PDFWatermarker
+	FileProxySigner *fileproxy.Signer
+	SessionManager  *scs.SessionManager
+	Renderer        *views.Renderer
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -91,6 +93,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		noteRepo,
 		deps.R2,
 		deps.PDFWatermarker,
+		deps.FileProxySigner,
 		deps.SessionManager,
 		deps.Renderer,
 	)

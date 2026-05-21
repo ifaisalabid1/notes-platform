@@ -102,18 +102,26 @@
           <tbody>
             {{ range . }}
               <tr>
-                <td>{{ .ClassName }}</td>
-                <td>{{ .SemesterName }}</td>
-                <td>{{ .SubjectName }}</td>
-                <td>{{ .UnitName }}</td>
-                <td>{{ .ChapterName }}</td>
-                <td>{{ .Title }}</td>
-                <td>{{ .OriginalFileName }}</td>
-                <td>{{ .ContentType }}</td>
-                <td>{{ .FileSizeBytes }} bytes</td>
-                <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
-                <td>{{ if .IsWatermarked }}Yes{{ else }}No{{ end }}</td>
-                <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                <td>{{ .Note.ClassName }}</td>
+                <td>{{ .Note.SemesterName }}</td>
+                <td>{{ .Note.SubjectName }}</td>
+                <td>{{ .Note.UnitName }}</td>
+                <td>{{ .Note.ChapterName }}</td>
+                <td>{{ .Note.Title }}</td>
+                <td>
+                  <a
+                    href="{{ .FileURL }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ .Note.OriginalFileName }}
+                  </a>
+                </td>
+                <td>{{ .Note.ContentType }}</td>
+                <td>{{ .Note.FileSizeBytes }} bytes</td>
+                <td>{{ if .Note.IsPublished }}Yes{{ else }}No{{ end }}</td>
+                <td>{{ if .Note.IsWatermarked }}Yes{{ else }}No{{ end }}</td>
+                <td>{{ .Note.CreatedAt.Format "2006-01-02 15:04" }}</td>
               </tr>
             {{ end }}
           </tbody>
