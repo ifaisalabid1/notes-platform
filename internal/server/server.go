@@ -37,6 +37,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	classRepo := academic.NewClassRepository(deps.DB.Pool)
 	semesterRepo := academic.NewSemesterRepository(deps.DB.Pool)
 	subjectRepo := academic.NewSubjectRepository(deps.DB.Pool)
+	unitRepo := academic.NewUnitRepository(deps.DB.Pool)
 
 	adminAuthHandler := handlers.NewAdminAuthHandler(
 		adminRepo,
@@ -67,6 +68,12 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.Renderer,
 	)
 
+	adminUnitHandler := handlers.NewAdminUnitHandler(
+		subjectRepo,
+		unitRepo,
+		deps.Renderer,
+	)
+
 	authMiddleware := auth.NewMiddleware(deps.SessionManager)
 
 	r.Get("/healthz", healthHandler.Check)
@@ -80,6 +87,9 @@ func NewRouter(deps Dependencies) http.Handler {
 
 	r.Get("/admin/subjects", adminSubjectHandler.Index)
 	r.Post("/admin/subjects", adminSubjectHandler.Store)
+
+	r.Get("/admin/units", adminUnitHandler.Index)
+	r.Post("/admin/units", adminUnitHandler.Store)
 
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.RequireAdmin)
