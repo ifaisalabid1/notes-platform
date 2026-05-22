@@ -1,0 +1,88 @@
+{{ define "content" }}
+  <section class="mx-auto max-w-3xl space-y-8">
+    <div>
+      <span class="badge">Edit Content</span>
+      <h1 class="page-title mt-4">Edit Subject</h1>
+      <p class="page-subtitle">
+        Update subject details, parent semester, and publishing status.
+      </p>
+    </div>
+
+    {{ if .Error }}
+      <div class="alert-error" role="alert">{{ .Error }}</div>
+    {{ end }}
+
+
+    <section class="card">
+      <form
+        method="post"
+        action="/admin/subjects/{{ .Data.Subject.ID }}/edit"
+        class="space-y-5"
+      >
+        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+
+        <div>
+          <label for="semester_id">Semester</label>
+          <select id="semester_id" name="semester_id" required>
+            {{ range .Data.Semesters }}
+              <option
+                value="{{ .ID }}"
+                {{ if eq .ID $.Data.Subject.SemesterID }}selected{{ end }}
+              >
+                {{ .ClassName }} -
+                {{ .Name }}
+              </option>
+            {{ end }}
+          </select>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label for="name">Subject Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              value="{{ .Data.Subject.Name }}"
+              required
+            />
+          </div>
+
+          <div>
+            <label for="sort_order">Sort Order</label>
+            <input
+              id="sort_order"
+              name="sort_order"
+              type="number"
+              value="{{ .Data.Subject.SortOrder }}"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="4">
+{{ if .Data.Subject.Description }}
+              {{ .Data.Subject.Description }}
+            {{ end }}</textarea
+          >
+        </div>
+
+        <label class="inline-flex items-center gap-2">
+          <input
+            name="is_published"
+            type="checkbox"
+            class="h-4 w-4 rounded border-academic-300"
+            {{ if .Data.Subject.IsPublished }}checked{{ end }}
+          />
+          <span>Published</span>
+        </label>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="btn-primary">Save Changes</button>
+          <a href="/admin/subjects" class="btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </section>
+  </section>
+{{ end }}

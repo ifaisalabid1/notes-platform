@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrSubjectNotFound = errors.New("subject not found")
 
 type Subject struct {
 	ID           uuid.UUID
@@ -165,4 +168,139 @@ func (r *SubjectRepository) List(ctx context.Context) ([]Subject, error) {
 	}
 
 	return subjects, nil
+}
+
+func (r *SubjectRepository) FindByID(ctx context.Context, id uuid.UUID) (Subject, error) {
+	if id == uuid.Nil {
+		return Subject{}, ErrSubjectNotFound
+	}
+
+	var item Subject
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			sub.id,
+			sub.semester_id,
+			sem.name AS semester_name,
+			c.name AS class_name,
+			sub.name,
+			sub.slug,
+			sub.description,
+			sub.sort_order,
+			sub.is_published,
+			sub.created_at,
+			sub.updated_at
+		FROM subjects sub
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+		WHERE sub.id = $1
+	`, id).Scan(
+		&item.ID,
+		&item.SemesterID,
+		&item.SemesterName,
+		&item.ClassName,
+		&item.Name,
+		&item.Slug,
+		&item.Description,
+		&item.SortOrder,
+		&item.IsPublished,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Subject{}, ErrSubjectNotFound
+		}
+
+		return Subject{}, fmt.Errorf("find subject by id: %w", err)
+	}
+
+	return item, nil
+}
+
+type UpdateSubjectParams struct {
+	ID          uuid.UUID
+	SemesterID  uuid.UUID
+	Name        string
+	Description string
+	SortOrder   int
+	IsPublished bool
+}
+
+func (r *SubjectRepository) Update(ctx context.Context, params UpdateSubjectParams) (Subject, error) {
+	name := strings.TrimSpace(params.Name)
+	description := strings.TrimSpace(params.Description)
+
+	if params.ID == uuid.Nil {
+		return Subject{}, ErrSubjectNotFound
+	}
+
+	if params.SemesterID == uuid.Nil {
+		return Subject{}, errors.New("semester is required")
+	}
+
+	if name == "" {
+		return Subject{}, errors.New("subject name is required")
+	}
+
+	slug := Slugify(name)
+	if slug == "" {
+		return Subject{}, errors.New("subject name must contain valid characters")
+	}
+
+	var descriptionPtr *string
+	if description != "" {
+		descriptionPtr = &description
+	}
+
+	var updated Subject
+
+	err := r.pool.QueryRow(ctx, `
+		UPDATE subjects
+		SET
+			semester_id = $2,
+			name = $3,
+			slug = $4,
+			description = $5,
+			sort_order = $6,
+			is_published = $7
+		WHERE id = $1
+		RETURNING
+			id,
+			semester_id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+	`,
+		params.ID,
+		params.SemesterID,
+		name,
+		slug,
+		descriptionPtr,
+		params.SortOrder,
+		params.IsPublished,
+	).Scan(
+		&updated.ID,
+		&updated.SemesterID,
+		&updated.Name,
+		&updated.Slug,
+		&updated.Description,
+		&updated.SortOrder,
+		&updated.IsPublished,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Subject{}, ErrSubjectNotFound
+		}
+
+		return Subject{}, fmt.Errorf("update subject: %w", err)
+	}
+
+	return updated, nil
 }

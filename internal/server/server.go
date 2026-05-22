@@ -150,6 +150,8 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/subjects", adminSubjectHandler.Index)
 		r.Post("/admin/subjects", adminSubjectHandler.Store)
+		r.Get("/admin/subjects/{subjectID}/edit", adminSubjectHandler.Edit)
+		r.Post("/admin/subjects/{subjectID}/edit", adminSubjectHandler.Update)
 
 		r.Get("/admin/units", adminUnitHandler.Index)
 		r.Post("/admin/units", adminUnitHandler.Store)
