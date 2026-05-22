@@ -25,18 +25,76 @@
       >
         <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
 
-        <div>
-          <label for="chapter_id">Chapter</label>
-          <select id="chapter_id" name="chapter_id" required>
-            <option value="">Select chapter</option>
-            {{ range .Data.Chapters }}
-              <option value="{{ .ID }}">
-                {{ .ClassName }} - {{ .SemesterName }} - {{ .SubjectName }} -
-                {{ .UnitName }} -
-                {{ .Name }}
-              </option>
-            {{ end }}
-          </select>
+        <div class="grid gap-4 lg:grid-cols-5">
+          <div>
+            <label for="class_id">Class</label>
+            <select
+              id="class_id"
+              name="class_id"
+              hx-get="/admin/htmx/semesters"
+              hx-target="#semester_id"
+              hx-trigger="change"
+              hx-include="#class_id"
+              required
+            >
+              <option value="">Select class</option>
+              {{ range .Data.Classes }}
+                <option value="{{ .ID }}">{{ .Name }}</option>
+              {{ end }}
+            </select>
+          </div>
+
+          <div>
+            <label for="semester_id">Semester</label>
+            <select
+              id="semester_id"
+              name="semester_id"
+              hx-get="/admin/htmx/subjects"
+              hx-target="#subject_id"
+              hx-trigger="change"
+              hx-include="#semester_id"
+              required
+            >
+              <option value="">Select semester</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="subject_id">Subject</label>
+            <select
+              id="subject_id"
+              name="subject_id"
+              hx-get="/admin/htmx/units"
+              hx-target="#unit_id"
+              hx-trigger="change"
+              hx-include="#subject_id"
+              required
+            >
+              <option value="">Select subject</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="unit_id">Unit</label>
+            <select
+              id="unit_id"
+              name="unit_id"
+              hx-get="/admin/htmx/chapters"
+              hx-target="#chapter_id"
+              hx-trigger="change"
+              hx-include="#unit_id"
+              required
+            >
+              <option value="">Select unit</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="chapter_id">Chapter</label>
+            <select id="chapter_id" name="chapter_id" required>
+              <option value="">Select chapter</option>
+            </select>
+          </div>
         </div>
 
         <div class="form-grid">

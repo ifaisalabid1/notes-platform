@@ -94,6 +94,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	)
 
 	adminNoteHandler := handlers.NewAdminNoteHandler(
+		classRepo,
 		chapterRepo,
 		noteRepo,
 		deps.R2,
@@ -108,6 +109,11 @@ func NewRouter(deps Dependencies) http.Handler {
 	publicHandler := handlers.NewPublicHandler(
 		publicRepo,
 		deps.FileProxySigner,
+		deps.Renderer,
+	)
+
+	adminHTMXHandler := handlers.NewAdminHTMXHandler(
+		publicRepo,
 		deps.Renderer,
 	)
 
@@ -149,6 +155,11 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/notes", adminNoteHandler.Index)
 		r.Post("/admin/notes", adminNoteHandler.Store)
+
+		r.Get("/admin/htmx/semesters", adminHTMXHandler.SemestersByClass)
+		r.Get("/admin/htmx/subjects", adminHTMXHandler.SubjectsBySemester)
+		r.Get("/admin/htmx/units", adminHTMXHandler.UnitsBySubject)
+		r.Get("/admin/htmx/chapters", adminHTMXHandler.ChaptersByUnit)
 
 		r.Get("/admin/storage/readyz", adminStorageHandler.Ready)
 

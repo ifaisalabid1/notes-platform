@@ -1,0 +1,6 @@
+{{ define "content" }}
+  <option value="">Select unit</option>
+  {{ range .Data.Units }}
+    <option value="{{ .ID }}">{{ .Name }}</option>
+  {{ end }}
+{{ end }}

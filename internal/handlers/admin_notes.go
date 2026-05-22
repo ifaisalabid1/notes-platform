@@ -21,6 +21,7 @@ import (
 )
 
 type AdminNoteHandler struct {
+	classRepo       *academic.ClassRepository
 	chapterRepo     *academic.ChapterRepository
 	noteRepo        *academic.NoteRepository
 	r2              *storage.R2Client
@@ -31,6 +32,7 @@ type AdminNoteHandler struct {
 }
 
 func NewAdminNoteHandler(
+	classRepo *academic.ClassRepository,
 	chapterRepo *academic.ChapterRepository,
 	noteRepo *academic.NoteRepository,
 	r2 *storage.R2Client,
@@ -40,6 +42,7 @@ func NewAdminNoteHandler(
 	renderer *views.Renderer,
 ) *AdminNoteHandler {
 	return &AdminNoteHandler{
+		classRepo:       classRepo,
 		chapterRepo:     chapterRepo,
 		noteRepo:        noteRepo,
 		r2:              r2,
@@ -56,8 +59,8 @@ type AdminNoteListItem struct {
 }
 
 type AdminNotesPageData struct {
-	Chapters []academic.Chapter
-	Notes    []AdminNoteListItem
+	Classes []academic.Class
+	Notes   []AdminNoteListItem
 }
 
 func (h *AdminNoteHandler) Index(w http.ResponseWriter, r *http.Request) {
@@ -209,7 +212,7 @@ func (h *AdminNoteHandler) renderIndexWithError(w http.ResponseWriter, r *http.R
 }
 
 func (h *AdminNoteHandler) pageData(r *http.Request) (AdminNotesPageData, error) {
-	chapters, err := h.chapterRepo.List(r.Context())
+	classes, err := h.classRepo.List(r.Context())
 	if err != nil {
 		return AdminNotesPageData{}, err
 	}
@@ -234,8 +237,8 @@ func (h *AdminNoteHandler) pageData(r *http.Request) (AdminNotesPageData, error)
 	}
 
 	return AdminNotesPageData{
-		Chapters: chapters,
-		Notes:    noteItems,
+		Classes: classes,
+		Notes:   noteItems,
 	}, nil
 }
 

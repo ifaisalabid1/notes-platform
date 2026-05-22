@@ -71,3 +71,21 @@ func (r *Renderer) Render(w http.ResponseWriter, req *http.Request, name string,
 		http.Error(w, "render template", http.StatusInternalServerError)
 	}
 }
+
+func (r *Renderer) RenderPartial(w http.ResponseWriter, req *http.Request, name string, data TemplateData) {
+	tmpl, ok := r.templates[name]
+	if !ok {
+		http.Error(w, "template not found", http.StatusInternalServerError)
+		return
+	}
+
+	data.CSRFToken = nosurf.Token(req)
+	data.IsAuthenticated = r.sessionManager.Exists(req.Context(), "admin_id")
+	data.Flash = r.sessionManager.PopString(req.Context(), "flash")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := tmpl.ExecuteTemplate(w, "content", data); err != nil {
+		http.Error(w, "render partial", http.StatusInternalServerError)
+	}
+}

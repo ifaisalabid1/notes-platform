@@ -1,0 +1,6 @@
+{{ define "content" }}
+  <option value="">Select chapter</option>
+  {{ range .Data.Chapters }}
+    <option value="{{ .ID }}">{{ .Name }}</option>
+  {{ end }}
+{{ end }}

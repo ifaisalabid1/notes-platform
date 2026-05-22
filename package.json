@@ -5,7 +5,9 @@
   "main": "src/index.ts",
   "scripts": {
     "css:build": "tailwindcss -i ./web/assets/css/app.css -o ./web/static/css/app.css --minify",
-    "css:watch": "tailwindcss -i ./web/assets/css/app.css -o ./web/static/css/app.css --watch"
+    "css:watch": "tailwindcss -i ./web/assets/css/app.css -o ./web/static/css/app.css --watch",
+    "go:dev": "go run ./cmd/web",
+    "dev": "concurrently \"pnpm css:watch\" \"pnpm go:dev\""
   },
   "keywords": [],
   "author": "",
@@ -14,6 +16,7 @@
   "type": "module",
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.0",
+    "concurrently": "^9.2.1",
     "prettier": "^3.8.3",
     "prettier-plugin-go-template": "^0.0.15",
     "tailwindcss": "^4.3.0"

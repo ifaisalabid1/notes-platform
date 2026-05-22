@@ -1,0 +1,6 @@
+{{ define "content" }}
+  <option value="">Select semester</option>
+  {{ range .Data.Semesters }}
+    <option value="{{ .ID }}">{{ .Name }}</option>
+  {{ end }}
+{{ end }}

@@ -615,3 +615,207 @@ func (r *PublicRepository) IncrementNoteViewCount(ctx context.Context, noteID uu
 
 	return nil
 }
+
+func (r *PublicRepository) SemestersByClassID(ctx context.Context, classID uuid.UUID) ([]Semester, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			id,
+			class_id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+		FROM semesters
+		WHERE class_id = $1
+		ORDER BY sort_order ASC, name ASC
+	`, classID)
+	if err != nil {
+		return nil, fmt.Errorf("list semesters by class id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]Semester, 0)
+
+	for rows.Next() {
+		var item Semester
+
+		err := rows.Scan(
+			&item.ID,
+			&item.ClassID,
+			&item.Name,
+			&item.Slug,
+			&item.Description,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan semester: %w", err)
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate semesters: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *PublicRepository) SubjectsBySemesterID(ctx context.Context, semesterID uuid.UUID) ([]Subject, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			id,
+			semester_id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+		FROM subjects
+		WHERE semester_id = $1
+		ORDER BY sort_order ASC, name ASC
+	`, semesterID)
+	if err != nil {
+		return nil, fmt.Errorf("list subjects by semester id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]Subject, 0)
+
+	for rows.Next() {
+		var item Subject
+
+		err := rows.Scan(
+			&item.ID,
+			&item.SemesterID,
+			&item.Name,
+			&item.Slug,
+			&item.Description,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan subject: %w", err)
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate subjects: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *PublicRepository) UnitsBySubjectID(ctx context.Context, subjectID uuid.UUID) ([]Unit, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			id,
+			subject_id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+		FROM units
+		WHERE subject_id = $1
+		ORDER BY sort_order ASC, name ASC
+	`, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("list units by subject id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]Unit, 0)
+
+	for rows.Next() {
+		var item Unit
+
+		err := rows.Scan(
+			&item.ID,
+			&item.SubjectID,
+			&item.Name,
+			&item.Slug,
+			&item.Description,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan unit: %w", err)
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate units: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *PublicRepository) ChaptersByUnitID(ctx context.Context, unitID uuid.UUID) ([]Chapter, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			id,
+			unit_id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+		FROM chapters
+		WHERE unit_id = $1
+		ORDER BY sort_order ASC, name ASC
+	`, unitID)
+	if err != nil {
+		return nil, fmt.Errorf("list chapters by unit id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]Chapter, 0)
+
+	for rows.Next() {
+		var item Chapter
+
+		err := rows.Scan(
+			&item.ID,
+			&item.UnitID,
+			&item.Name,
+			&item.Slug,
+			&item.Description,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan chapter: %w", err)
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate chapters: %w", err)
+	}
+
+	return items, nil
+}
