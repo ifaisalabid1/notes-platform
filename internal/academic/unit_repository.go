@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrUnitNotFound = errors.New("unit not found")
 
 type Unit struct {
 	ID           uuid.UUID
@@ -171,4 +174,142 @@ func (r *UnitRepository) List(ctx context.Context) ([]Unit, error) {
 	}
 
 	return units, nil
+}
+
+func (r *UnitRepository) FindByID(ctx context.Context, id uuid.UUID) (Unit, error) {
+	if id == uuid.Nil {
+		return Unit{}, ErrUnitNotFound
+	}
+
+	var item Unit
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			u.id,
+			u.subject_id,
+			sub.name AS subject_name,
+			sem.name AS semester_name,
+			c.name AS class_name,
+			u.name,
+			u.slug,
+			u.description,
+			u.sort_order,
+			u.is_published,
+			u.created_at,
+			u.updated_at
+		FROM units u
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+		WHERE u.id = $1
+	`, id).Scan(
+		&item.ID,
+		&item.SubjectID,
+		&item.SubjectName,
+		&item.SemesterName,
+		&item.ClassName,
+		&item.Name,
+		&item.Slug,
+		&item.Description,
+		&item.SortOrder,
+		&item.IsPublished,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Unit{}, ErrUnitNotFound
+		}
+
+		return Unit{}, fmt.Errorf("find unit by id: %w", err)
+	}
+
+	return item, nil
+}
+
+type UpdateUnitParams struct {
+	ID          uuid.UUID
+	SubjectID   uuid.UUID
+	Name        string
+	Description string
+	SortOrder   int
+	IsPublished bool
+}
+
+func (r *UnitRepository) Update(ctx context.Context, params UpdateUnitParams) (Unit, error) {
+	name := strings.TrimSpace(params.Name)
+	description := strings.TrimSpace(params.Description)
+
+	if params.ID == uuid.Nil {
+		return Unit{}, ErrUnitNotFound
+	}
+
+	if params.SubjectID == uuid.Nil {
+		return Unit{}, errors.New("subject is required")
+	}
+
+	if name == "" {
+		return Unit{}, errors.New("unit name is required")
+	}
+
+	slug := Slugify(name)
+	if slug == "" {
+		return Unit{}, errors.New("unit name must contain valid characters")
+	}
+
+	var descriptionPtr *string
+	if description != "" {
+		descriptionPtr = &description
+	}
+
+	var updated Unit
+
+	err := r.pool.QueryRow(ctx, `
+		UPDATE units
+		SET
+			subject_id = $2,
+			name = $3,
+			slug = $4,
+			description = $5,
+			sort_order = $6,
+			is_published = $7
+		WHERE id = $1
+		RETURNING
+			id,
+			subject_id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+	`,
+		params.ID,
+		params.SubjectID,
+		name,
+		slug,
+		descriptionPtr,
+		params.SortOrder,
+		params.IsPublished,
+	).Scan(
+		&updated.ID,
+		&updated.SubjectID,
+		&updated.Name,
+		&updated.Slug,
+		&updated.Description,
+		&updated.SortOrder,
+		&updated.IsPublished,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Unit{}, ErrUnitNotFound
+		}
+
+		return Unit{}, fmt.Errorf("update unit: %w", err)
+	}
+
+	return updated, nil
 }

@@ -155,6 +155,8 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/units", adminUnitHandler.Index)
 		r.Post("/admin/units", adminUnitHandler.Store)
+		r.Get("/admin/units/{unitID}/edit", adminUnitHandler.Edit)
+		r.Post("/admin/units/{unitID}/edit", adminUnitHandler.Update)
 
 		r.Get("/admin/chapters", adminChapterHandler.Index)
 		r.Post("/admin/chapters", adminChapterHandler.Store)

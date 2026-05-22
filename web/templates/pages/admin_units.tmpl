@@ -24,7 +24,8 @@
               <option value="">Select subject</option>
               {{ range .Data.Subjects }}
                 <option value="{{ .ID }}">
-                  {{ .ClassName }} - {{ .SemesterName }} - {{ .Name }}
+                  {{ .ClassName }} - {{ .SemesterName }} -
+                  {{ .Name }}
                 </option>
               {{ end }}
             </select>
@@ -90,6 +91,7 @@
                 <th>Published</th>
                 <th>Sort Order</th>
                 <th>Created At</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
@@ -104,6 +106,9 @@
                   <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ .SortOrder }}</td>
                   <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                  <td>
+                    <a href="/admin/units/{{ .ID }}/edit">Edit</a>
+                  </td>
                 </tr>
               {{ end }}
             </tbody>
