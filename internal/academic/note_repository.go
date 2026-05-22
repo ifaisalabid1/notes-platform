@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrNoteNotFound = errors.New("note not found")
 
 type Note struct {
 	ID               uuid.UUID
@@ -292,4 +295,188 @@ func (r *NoteRepository) List(ctx context.Context) ([]Note, error) {
 	}
 
 	return notes, nil
+}
+
+func (r *NoteRepository) FindByID(ctx context.Context, id uuid.UUID) (Note, error) {
+	if id == uuid.Nil {
+		return Note{}, ErrNoteNotFound
+	}
+
+	var item Note
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			n.id,
+			n.chapter_id,
+			ch.name AS chapter_name,
+			u.name AS unit_name,
+			sub.name AS subject_name,
+			sem.name AS semester_name,
+			c.name AS class_name,
+			n.title,
+			n.slug,
+			n.description,
+			n.original_file_name,
+			n.stored_file_name,
+			n.storage_key,
+			n.content_type,
+			n.file_size_bytes,
+			n.is_pdf,
+			n.is_watermarked,
+			n.download_count,
+			n.view_count,
+			n.sort_order,
+			n.is_published,
+			n.uploaded_by,
+			n.created_at,
+			n.updated_at
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+		WHERE n.id = $1
+	`, id).Scan(
+		&item.ID,
+		&item.ChapterID,
+		&item.ChapterName,
+		&item.UnitName,
+		&item.SubjectName,
+		&item.SemesterName,
+		&item.ClassName,
+		&item.Title,
+		&item.Slug,
+		&item.Description,
+		&item.OriginalFileName,
+		&item.StoredFileName,
+		&item.StorageKey,
+		&item.ContentType,
+		&item.FileSizeBytes,
+		&item.IsPDF,
+		&item.IsWatermarked,
+		&item.DownloadCount,
+		&item.ViewCount,
+		&item.SortOrder,
+		&item.IsPublished,
+		&item.UploadedBy,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Note{}, ErrNoteNotFound
+		}
+
+		return Note{}, fmt.Errorf("find note by id: %w", err)
+	}
+
+	return item, nil
+}
+
+type UpdateNoteMetadataParams struct {
+	ID          uuid.UUID
+	ChapterID   uuid.UUID
+	Title       string
+	Description string
+	SortOrder   int
+	IsPublished bool
+}
+
+func (r *NoteRepository) UpdateMetadata(ctx context.Context, params UpdateNoteMetadataParams) (Note, error) {
+	title := strings.TrimSpace(params.Title)
+	description := strings.TrimSpace(params.Description)
+
+	if params.ID == uuid.Nil {
+		return Note{}, ErrNoteNotFound
+	}
+
+	if params.ChapterID == uuid.Nil {
+		return Note{}, errors.New("chapter is required")
+	}
+
+	if title == "" {
+		return Note{}, errors.New("note title is required")
+	}
+
+	slug := Slugify(title)
+	if slug == "" {
+		return Note{}, errors.New("note title must contain valid characters")
+	}
+
+	var descriptionPtr *string
+	if description != "" {
+		descriptionPtr = &description
+	}
+
+	var updated Note
+
+	err := r.pool.QueryRow(ctx, `
+		UPDATE notes
+		SET
+			chapter_id = $2,
+			title = $3,
+			slug = $4,
+			description = $5,
+			sort_order = $6,
+			is_published = $7
+		WHERE id = $1
+		RETURNING
+			id,
+			chapter_id,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			download_count,
+			view_count,
+			sort_order,
+			is_published,
+			uploaded_by,
+			created_at,
+			updated_at
+	`,
+		params.ID,
+		params.ChapterID,
+		title,
+		slug,
+		descriptionPtr,
+		params.SortOrder,
+		params.IsPublished,
+	).Scan(
+		&updated.ID,
+		&updated.ChapterID,
+		&updated.Title,
+		&updated.Slug,
+		&updated.Description,
+		&updated.OriginalFileName,
+		&updated.StoredFileName,
+		&updated.StorageKey,
+		&updated.ContentType,
+		&updated.FileSizeBytes,
+		&updated.IsPDF,
+		&updated.IsWatermarked,
+		&updated.DownloadCount,
+		&updated.ViewCount,
+		&updated.SortOrder,
+		&updated.IsPublished,
+		&updated.UploadedBy,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Note{}, ErrNoteNotFound
+		}
+
+		return Note{}, fmt.Errorf("update note metadata: %w", err)
+	}
+
+	return updated, nil
 }

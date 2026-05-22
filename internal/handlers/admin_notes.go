@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
@@ -61,6 +63,12 @@ type AdminNoteListItem struct {
 type AdminNotesPageData struct {
 	Classes []academic.Class
 	Notes   []AdminNoteListItem
+}
+
+type AdminNoteEditPageData struct {
+	Chapters []academic.Chapter
+	Note     academic.Note
+	FileURL  string
 }
 
 func (h *AdminNoteHandler) Index(w http.ResponseWriter, r *http.Request) {
@@ -262,4 +270,136 @@ func buildNoteStorageKey(chapterID uuid.UUID, noteID uuid.UUID, storedFileName s
 		noteID.String(),
 		storedFileName,
 	)
+}
+
+func (h *AdminNoteHandler) Edit(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	pageData, err := h.editPageData(r, noteID)
+	if err != nil {
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to load note edit page", "error", err)
+		http.Error(w, "Failed to load note", http.StatusInternalServerError)
+		return
+	}
+
+	h.renderer.Render(w, r, "admin_note_edit.tmpl", views.TemplateData{
+		Title: "Edit Note",
+		Data:  pageData,
+	})
+}
+
+func (h *AdminNoteHandler) Update(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		h.renderEditWithError(w, r, noteID, "Invalid form submission.")
+		return
+	}
+
+	chapterIDValue := strings.TrimSpace(r.PostForm.Get("chapter_id"))
+	title := strings.TrimSpace(r.PostForm.Get("title"))
+	description := strings.TrimSpace(r.PostForm.Get("description"))
+	sortOrderValue := strings.TrimSpace(r.PostForm.Get("sort_order"))
+	isPublished := r.PostForm.Get("is_published") == "on"
+
+	chapterID, err := uuid.Parse(chapterIDValue)
+	if err != nil {
+		h.renderEditWithError(w, r, noteID, "Please select a valid chapter.")
+		return
+	}
+
+	sortOrder := 0
+	if sortOrderValue != "" {
+		parsedSortOrder, err := strconv.Atoi(sortOrderValue)
+		if err != nil {
+			h.renderEditWithError(w, r, noteID, "Sort order must be a number.")
+			return
+		}
+
+		sortOrder = parsedSortOrder
+	}
+
+	if title == "" {
+		h.renderEditWithError(w, r, noteID, "Note title is required.")
+		return
+	}
+
+	_, err = h.noteRepo.UpdateMetadata(r.Context(), academic.UpdateNoteMetadataParams{
+		ID:          noteID,
+		ChapterID:   chapterID,
+		Title:       title,
+		Description: description,
+		SortOrder:   sortOrder,
+		IsPublished: isPublished,
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			h.renderEditWithError(w, r, noteID, "A note with this title already exists for the selected chapter.")
+			return
+		}
+
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to update note metadata", "error", err)
+		h.renderEditWithError(w, r, noteID, "Failed to update note.")
+		return
+	}
+
+	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
+}
+
+func (h *AdminNoteHandler) renderEditWithError(w http.ResponseWriter, r *http.Request, noteID uuid.UUID, message string) {
+	pageData, err := h.editPageData(r, noteID)
+	if err != nil {
+		slog.Error("failed to reload note edit page after error", "error", err)
+		http.Error(w, "Failed to load note", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusUnprocessableEntity)
+
+	h.renderer.Render(w, r, "admin_note_edit.tmpl", views.TemplateData{
+		Title: "Edit Note",
+		Error: message,
+		Data:  pageData,
+	})
+}
+
+func (h *AdminNoteHandler) editPageData(r *http.Request, noteID uuid.UUID) (AdminNoteEditPageData, error) {
+	chapters, err := h.chapterRepo.List(r.Context())
+	if err != nil {
+		return AdminNoteEditPageData{}, err
+	}
+
+	noteItem, err := h.noteRepo.FindByID(r.Context(), noteID)
+	if err != nil {
+		return AdminNoteEditPageData{}, err
+	}
+
+	fileURL, err := h.fileProxySigner.SignedFileURL(noteItem.StorageKey)
+	if err != nil {
+		return AdminNoteEditPageData{}, fmt.Errorf("sign note file url: %w", err)
+	}
+
+	return AdminNoteEditPageData{
+		Chapters: chapters,
+		Note:     noteItem,
+		FileURL:  fileURL,
+	}, nil
 }

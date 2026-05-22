@@ -1,0 +1,131 @@
+{{ define "content" }}
+  <section class="mx-auto max-w-3xl space-y-8">
+    <div>
+      <span class="badge">Edit File Metadata</span>
+      <h1 class="page-title mt-4">Edit Note</h1>
+      <p class="page-subtitle">
+        Update note title, chapter, description, sort order, and publishing
+        status.
+      </p>
+    </div>
+
+    {{ if .Error }}
+      <div class="alert-error" role="alert">{{ .Error }}</div>
+    {{ end }}
+
+
+    <section class="card space-y-6">
+      <div class="rounded-xl bg-academic-50 p-4">
+        <h2 class="text-sm font-semibold text-academic-900">Current file</h2>
+
+        <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="font-medium text-academic-500">File name</dt>
+            <dd class="mt-1 text-academic-800">
+              {{ .Data.Note.OriginalFileName }}
+            </dd>
+          </div>
+
+          <div>
+            <dt class="font-medium text-academic-500">Content type</dt>
+            <dd class="mt-1 text-academic-800">{{ .Data.Note.ContentType }}</dd>
+          </div>
+
+          <div>
+            <dt class="font-medium text-academic-500">File size</dt>
+            <dd class="mt-1 text-academic-800">
+              {{ .Data.Note.FileSizeBytes }} bytes
+            </dd>
+          </div>
+
+          <div>
+            <dt class="font-medium text-academic-500">Watermarked</dt>
+            <dd class="mt-1 text-academic-800">
+              {{ if .Data.Note.IsWatermarked }}Yes{{ else }}No{{ end }}
+            </dd>
+          </div>
+        </dl>
+
+        <div class="mt-4">
+          <a
+            href="{{ .Data.FileURL }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-secondary"
+          >
+            View Current File
+          </a>
+        </div>
+      </div>
+
+      <form
+        method="post"
+        action="/admin/notes/{{ .Data.Note.ID }}/edit"
+        class="space-y-5"
+      >
+        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+
+        <div>
+          <label for="chapter_id">Chapter</label>
+          <select id="chapter_id" name="chapter_id" required>
+            {{ range .Data.Chapters }}
+              <option
+                value="{{ .ID }}"
+                {{ if eq .ID $.Data.Note.ChapterID }}selected{{ end }}
+              >
+                {{ .ClassName }} - {{ .SemesterName }} - {{ .SubjectName }} -
+                {{ .UnitName }} -
+                {{ .Name }}
+              </option>
+            {{ end }}
+          </select>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label for="title">Note Title</label>
+            <input
+              id="title"
+              name="title"
+              type="text"
+              value="{{ .Data.Note.Title }}"
+              required
+            />
+          </div>
+
+          <div>
+            <label for="sort_order">Sort Order</label>
+            <input
+              id="sort_order"
+              name="sort_order"
+              type="number"
+              value="{{ .Data.Note.SortOrder }}"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="4">
+{{ if .Data.Note.Description }}{{ .Data.Note.Description }}{{ end }}</textarea
+          >
+        </div>
+
+        <label class="inline-flex items-center gap-2">
+          <input
+            name="is_published"
+            type="checkbox"
+            class="h-4 w-4 rounded border-academic-300"
+            {{ if .Data.Note.IsPublished }}checked{{ end }}
+          />
+          <span>Published</span>
+        </label>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="btn-primary">Save Changes</button>
+          <a href="/admin/notes" class="btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </section>
+  </section>
+{{ end }}

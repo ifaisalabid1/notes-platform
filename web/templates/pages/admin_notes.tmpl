@@ -165,6 +165,7 @@
                 <th>Published</th>
                 <th>Watermarked</th>
                 <th>Created At</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
@@ -198,6 +199,9 @@
                   <td>{{ if .Note.IsPublished }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ if .Note.IsWatermarked }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ .Note.CreatedAt.Format "2006-01-02 15:04" }}</td>
+                  <td>
+                    <a href="/admin/notes/{{ .Note.ID }}/edit">Edit</a>
+                  </td>
                 </tr>
               {{ end }}
             </tbody>
