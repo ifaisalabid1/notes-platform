@@ -10,8 +10,11 @@ import (
 	"unicode"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrClassNotFound = errors.New("class not found")
 
 type Class struct {
 	ID          uuid.UUID
@@ -171,4 +174,122 @@ func Slugify(value string) string {
 	slug = re.ReplaceAllString(slug, "-")
 
 	return slug
+}
+
+func (r *ClassRepository) FindByID(ctx context.Context, id uuid.UUID) (Class, error) {
+	if id == uuid.Nil {
+		return Class{}, ErrClassNotFound
+	}
+
+	var item Class
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+		FROM classes
+		WHERE id = $1
+	`, id).Scan(
+		&item.ID,
+		&item.Name,
+		&item.Slug,
+		&item.Description,
+		&item.SortOrder,
+		&item.IsPublished,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Class{}, ErrClassNotFound
+		}
+
+		return Class{}, fmt.Errorf("find class by id: %w", err)
+	}
+
+	return item, nil
+}
+
+type UpdateClassParams struct {
+	ID          uuid.UUID
+	Name        string
+	Description string
+	SortOrder   int
+	IsPublished bool
+}
+
+func (r *ClassRepository) Update(ctx context.Context, params UpdateClassParams) (Class, error) {
+	name := strings.TrimSpace(params.Name)
+	description := strings.TrimSpace(params.Description)
+
+	if params.ID == uuid.Nil {
+		return Class{}, ErrClassNotFound
+	}
+
+	if name == "" {
+		return Class{}, errors.New("class name is required")
+	}
+
+	slug := Slugify(name)
+	if slug == "" {
+		return Class{}, errors.New("class name must contain valid characters")
+	}
+
+	var descriptionPtr *string
+	if description != "" {
+		descriptionPtr = &description
+	}
+
+	var updated Class
+
+	err := r.pool.QueryRow(ctx, `
+		UPDATE classes
+		SET
+			name = $2,
+			slug = $3,
+			description = $4,
+			sort_order = $5,
+			is_published = $6
+		WHERE id = $1
+		RETURNING
+			id,
+			name,
+			slug,
+			description,
+			sort_order,
+			is_published,
+			created_at,
+			updated_at
+	`,
+		params.ID,
+		name,
+		slug,
+		descriptionPtr,
+		params.SortOrder,
+		params.IsPublished,
+	).Scan(
+		&updated.ID,
+		&updated.Name,
+		&updated.Slug,
+		&updated.Description,
+		&updated.SortOrder,
+		&updated.IsPublished,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Class{}, ErrClassNotFound
+		}
+
+		return Class{}, fmt.Errorf("update class: %w", err)
+	}
+
+	return updated, nil
 }
