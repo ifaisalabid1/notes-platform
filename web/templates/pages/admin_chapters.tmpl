@@ -92,6 +92,7 @@
                 <th>Published</th>
                 <th>Sort Order</th>
                 <th>Created At</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
@@ -107,6 +108,9 @@
                   <td>{{ if .IsPublished }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ .SortOrder }}</td>
                   <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+                  <td>
+                    <a href="/admin/chapters/{{ .ID }}/edit">Edit</a>
+                  </td>
                 </tr>
               {{ end }}
             </tbody>
