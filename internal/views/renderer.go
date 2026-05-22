@@ -45,7 +45,23 @@ func NewRenderer(sessionManager *scs.SessionManager) (*Renderer, error) {
 
 		tmpl, err := template.ParseFiles(files...)
 		if err != nil {
-			return nil, fmt.Errorf("parse template %s: %w", name, err)
+			return nil, fmt.Errorf("parse page template %s: %w", name, err)
+		}
+
+		renderer.templates[name] = tmpl
+	}
+
+	partials, err := filepath.Glob("web/templates/partials/*.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("glob partial templates: %w", err)
+	}
+
+	for _, partial := range partials {
+		name := filepath.Base(partial)
+
+		tmpl, err := template.ParseFiles(partial)
+		if err != nil {
+			return nil, fmt.Errorf("parse partial template %s: %w", name, err)
 		}
 
 		renderer.templates[name] = tmpl
