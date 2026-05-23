@@ -164,6 +164,7 @@
                 <th>Size</th>
                 <th>Published</th>
                 <th>Watermarked</th>
+                <th>Archived</th>
                 <th>Created At</th>
                 <th>Actions</th>
               </tr>
@@ -198,9 +199,49 @@
                   <td>{{ .Note.FileSizeBytes }} bytes</td>
                   <td>{{ if .Note.IsPublished }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ if .Note.IsWatermarked }}Yes{{ else }}No{{ end }}</td>
+                  <td>{{ if .Note.ArchivedAt }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ .Note.CreatedAt.Format "2006-01-02 15:04" }}</td>
+
                   <td>
-                    <a href="/admin/notes/{{ .Note.ID }}/edit">Edit</a>
+                    <div class="flex flex-wrap gap-2">
+                      <a href="/admin/notes/{{ .Note.ID }}/edit">Edit</a>
+
+                      {{ if .Note.ArchivedAt }}
+                        <form
+                          method="post"
+                          action="/admin/notes/{{ .Note.ID }}/unarchive"
+                        >
+                          <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="{{ $.CSRFToken }}"
+                          />
+                          <button
+                            type="submit"
+                            class="text-sm font-medium text-brand-700 hover:text-brand-800"
+                          >
+                            Restore
+                          </button>
+                        </form>
+                      {{ else }}
+                        <form
+                          method="post"
+                          action="/admin/notes/{{ .Note.ID }}/archive"
+                        >
+                          <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="{{ $.CSRFToken }}"
+                          />
+                          <button
+                            type="submit"
+                            class="text-sm font-medium text-red-600 hover:text-red-700"
+                          >
+                            Archive
+                          </button>
+                        </form>
+                      {{ end }}
+                    </div>
                   </td>
                 </tr>
               {{ end }}

@@ -37,6 +37,7 @@ type Note struct {
 	SortOrder        int
 	IsPublished      bool
 	UploadedBy       *uuid.UUID
+	ArchivedAt       *time.Time
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -155,6 +156,7 @@ func (r *NoteRepository) Create(ctx context.Context, params CreateNoteParams) (N
 			sort_order,
 			is_published,
 			uploaded_by,
+			archived_at,
 			created_at,
 			updated_at
 	`,
@@ -190,6 +192,7 @@ func (r *NoteRepository) Create(ctx context.Context, params CreateNoteParams) (N
 		&created.SortOrder,
 		&created.IsPublished,
 		&created.UploadedBy,
+		&created.ArchivedAt,
 		&created.CreatedAt,
 		&created.UpdatedAt,
 	)
@@ -225,6 +228,7 @@ func (r *NoteRepository) List(ctx context.Context) ([]Note, error) {
 			n.sort_order,
 			n.is_published,
 			n.uploaded_by,
+			n.archived_at,
 			n.created_at,
 			n.updated_at
 		FROM notes n
@@ -234,6 +238,7 @@ func (r *NoteRepository) List(ctx context.Context) ([]Note, error) {
 		JOIN semesters sem ON sem.id = sub.semester_id
 		JOIN classes c ON c.id = sem.class_id
 		ORDER BY
+			n.archived_at IS NOT NULL ASC,
 			c.sort_order ASC,
 			c.name ASC,
 			sem.sort_order ASC,
@@ -280,6 +285,7 @@ func (r *NoteRepository) List(ctx context.Context) ([]Note, error) {
 			&item.SortOrder,
 			&item.IsPublished,
 			&item.UploadedBy,
+			&item.ArchivedAt,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		)
@@ -328,6 +334,7 @@ func (r *NoteRepository) FindByID(ctx context.Context, id uuid.UUID) (Note, erro
 			n.sort_order,
 			n.is_published,
 			n.uploaded_by,
+			n.archived_at,
 			n.created_at,
 			n.updated_at
 		FROM notes n
@@ -360,6 +367,7 @@ func (r *NoteRepository) FindByID(ctx context.Context, id uuid.UUID) (Note, erro
 		&item.SortOrder,
 		&item.IsPublished,
 		&item.UploadedBy,
+		&item.ArchivedAt,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -439,6 +447,7 @@ func (r *NoteRepository) UpdateMetadata(ctx context.Context, params UpdateNoteMe
 			sort_order,
 			is_published,
 			uploaded_by,
+			archived_at,
 			created_at,
 			updated_at
 	`,
@@ -467,6 +476,7 @@ func (r *NoteRepository) UpdateMetadata(ctx context.Context, params UpdateNoteMe
 		&updated.SortOrder,
 		&updated.IsPublished,
 		&updated.UploadedBy,
+		&updated.ArchivedAt,
 		&updated.CreatedAt,
 		&updated.UpdatedAt,
 	)
@@ -479,4 +489,50 @@ func (r *NoteRepository) UpdateMetadata(ctx context.Context, params UpdateNoteMe
 	}
 
 	return updated, nil
+}
+
+func (r *NoteRepository) Archive(ctx context.Context, id uuid.UUID) error {
+	if id == uuid.Nil {
+		return ErrNoteNotFound
+	}
+
+	commandTag, err := r.pool.Exec(ctx, `
+		UPDATE notes
+		SET
+			archived_at = now(),
+			is_published = FALSE
+		WHERE id = $1
+		AND archived_at IS NULL
+	`, id)
+	if err != nil {
+		return fmt.Errorf("archive note: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return ErrNoteNotFound
+	}
+
+	return nil
+}
+
+func (r *NoteRepository) Unarchive(ctx context.Context, id uuid.UUID) error {
+	if id == uuid.Nil {
+		return ErrNoteNotFound
+	}
+
+	commandTag, err := r.pool.Exec(ctx, `
+		UPDATE notes
+		SET archived_at = NULL
+		WHERE id = $1
+		AND archived_at IS NOT NULL
+	`, id)
+	if err != nil {
+		return fmt.Errorf("unarchive note: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return ErrNoteNotFound
+	}
+
+	return nil
 }

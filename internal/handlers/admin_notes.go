@@ -403,3 +403,47 @@ func (h *AdminNoteHandler) editPageData(r *http.Request, noteID uuid.UUID) (Admi
 		FileURL:  fileURL,
 	}, nil
 }
+
+func (h *AdminNoteHandler) Archive(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := h.noteRepo.Archive(r.Context(), noteID); err != nil {
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to archive note", "error", err)
+		http.Error(w, "Failed to archive note", http.StatusInternalServerError)
+		return
+	}
+
+	h.sessionManager.Put(r.Context(), "flash", "Note archived successfully.")
+	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
+}
+
+func (h *AdminNoteHandler) Unarchive(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := h.noteRepo.Unarchive(r.Context(), noteID); err != nil {
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to unarchive note", "error", err)
+		http.Error(w, "Failed to unarchive note", http.StatusInternalServerError)
+		return
+	}
+
+	h.sessionManager.Put(r.Context(), "flash", "Note restored successfully.")
+	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
+}

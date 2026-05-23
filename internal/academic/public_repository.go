@@ -354,11 +354,13 @@ func (r *PublicRepository) PublishedNotes(ctx context.Context, classSlug string,
 			sort_order,
 			is_published,
 			uploaded_by,
+			archived_at,
 			created_at,
 			updated_at
 		FROM notes
 		WHERE chapter_id = $1
 		AND is_published = TRUE
+		AND archived_at IS NULL
 		ORDER BY sort_order ASC, title ASC
 	`, chapterItem.ID)
 	if err != nil {
@@ -389,6 +391,7 @@ func (r *PublicRepository) PublishedNotes(ctx context.Context, classSlug string,
 			&item.SortOrder,
 			&item.IsPublished,
 			&item.UploadedBy,
+			&item.ArchivedAt,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		)
