@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -27,6 +28,7 @@ type Dependencies struct {
 	FileProxySigner *fileproxy.Signer
 	SessionManager  *scs.SessionManager
 	Renderer        *views.Renderer
+	EmbeddedFS      fs.FS
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -37,7 +39,12 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	fileServer := http.FileServer(http.Dir("web/static"))
+	staticFS, err := fs.Sub(deps.EmbeddedFS, "static")
+	if err != nil {
+		panic("failed to create static fs: " + err.Error())
+	}
+
+	fileServer := http.FileServerFS(staticFS)
 	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
 	healthHandler := handlers.NewHealthHandler(deps.DB)

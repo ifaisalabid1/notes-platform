@@ -3,8 +3,9 @@ package views
 import (
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
-	"path/filepath"
+	"path"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/justinas/nosurf"
@@ -24,26 +25,25 @@ type TemplateData struct {
 	Data            any
 }
 
-func NewRenderer(sessionManager *scs.SessionManager) (*Renderer, error) {
+func NewRenderer(sessionManager *scs.SessionManager, templateFS fs.FS) (*Renderer, error) {
 	renderer := &Renderer{
 		templates:      make(map[string]*template.Template),
 		sessionManager: sessionManager,
 	}
 
-	pages, err := filepath.Glob("web/templates/pages/*.tmpl")
+	pages, err := fs.Glob(templateFS, "templates/pages/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("glob page templates: %w", err)
 	}
 
 	for _, page := range pages {
-		name := filepath.Base(page)
+		name := path.Base(page)
 
-		files := []string{
-			"web/templates/layouts/base.tmpl",
+		tmpl, err := template.ParseFS(
+			templateFS,
+			"templates/layouts/base.tmpl",
 			page,
-		}
-
-		tmpl, err := template.ParseFiles(files...)
+		)
 		if err != nil {
 			return nil, fmt.Errorf("parse page template %s: %w", name, err)
 		}
@@ -51,15 +51,15 @@ func NewRenderer(sessionManager *scs.SessionManager) (*Renderer, error) {
 		renderer.templates[name] = tmpl
 	}
 
-	partials, err := filepath.Glob("web/templates/partials/*.tmpl")
+	partials, err := fs.Glob(templateFS, "templates/partials/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("glob partial templates: %w", err)
 	}
 
 	for _, partial := range partials {
-		name := filepath.Base(partial)
+		name := path.Base(partial)
 
-		tmpl, err := template.ParseFiles(partial)
+		tmpl, err := template.ParseFS(templateFS, partial)
 		if err != nil {
 			return nil, fmt.Errorf("parse partial template %s: %w", name, err)
 		}
@@ -97,7 +97,6 @@ func (r *Renderer) RenderPartial(w http.ResponseWriter, req *http.Request, name 
 
 	data.CSRFToken = nosurf.Token(req)
 	data.IsAuthenticated = r.sessionManager.Exists(req.Context(), "admin_id")
-	data.Flash = r.sessionManager.PopString(req.Context(), "flash")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 

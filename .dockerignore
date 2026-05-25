@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+tmp/
+bin/
+node_modules/
+workers/file-proxy/node_modules/
+workers/file-proxy/.wrangler
+.DS_Store
+*.log
+.idea/
+.vscode/

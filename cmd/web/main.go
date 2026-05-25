@@ -20,6 +20,7 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 	"github.com/ifaisalabid1/notes-platform/internal/watermark"
+	webassets "github.com/ifaisalabid1/notes-platform/web"
 )
 
 func main() {
@@ -78,7 +79,7 @@ func main() {
 	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
 	sessionManager.Cookie.Secure = cfg.IsProduction()
 
-	renderer, err := views.NewRenderer(sessionManager)
+	renderer, err := views.NewRenderer(sessionManager, webassets.FS)
 	if err != nil {
 		slog.Error("failed to create template renderer", "error", err)
 		os.Exit(1)
@@ -91,6 +92,7 @@ func main() {
 		FileProxySigner: fileProxySigner,
 		SessionManager:  sessionManager,
 		Renderer:        renderer,
+		EmbeddedFS:      webassets.FS,
 	})
 
 	httpServer := &http.Server{
