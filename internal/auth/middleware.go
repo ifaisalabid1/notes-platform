@@ -8,11 +8,13 @@ import (
 
 type Middleware struct {
 	sessionManager *scs.SessionManager
+	forbidden      http.HandlerFunc
 }
 
-func NewMiddleware(sessionManager *scs.SessionManager) *Middleware {
+func NewMiddleware(sessionManager *scs.SessionManager, forbidden http.HandlerFunc) *Middleware {
 	return &Middleware{
 		sessionManager: sessionManager,
+		forbidden:      forbidden,
 	}
 }
 
@@ -32,7 +34,7 @@ func (m *Middleware) RequireOwner(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		isOwner := m.sessionManager.GetBool(r.Context(), "admin_is_owner")
 		if !isOwner {
-			http.Error(w, "Forbidden", http.StatusForbidden)
+			m.forbidden(w, r)
 			return
 		}
 

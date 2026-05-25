@@ -1,0 +1,25 @@
+{{ define "content" }}
+  <section class="mx-auto max-w-2xl">
+    <div class="card text-center">
+      <div
+        class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-2xl font-bold text-brand-700"
+      >
+        {{ .Data.StatusCode }}
+      </div>
+
+      <h1 class="mt-6 text-3xl font-bold tracking-tight text-academic-900">
+        {{ .Data.Heading }}
+      </h1>
+
+      <p class="mt-3 text-sm leading-6 text-academic-600">
+        {{ .Data.Message }}
+      </p>
+
+      <div class="mt-6">
+        <a href="{{ .Data.ActionURL }}" class="btn-primary">
+          {{ .Data.ActionText }}
+        </a>
+      </div>
+    </div>
+  </section>
+{{ end }}

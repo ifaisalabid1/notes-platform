@@ -133,7 +133,12 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.Renderer,
 	)
 
-	authMiddleware := auth.NewMiddleware(deps.SessionManager)
+	errorHandler := handlers.NewErrorHandler(deps.Renderer)
+
+	authMiddleware := auth.NewMiddleware(
+		deps.SessionManager,
+		errorHandler.Forbidden,
+	)
 
 	r.Get("/healthz", healthHandler.Check)
 	r.Get("/readyz", healthHandler.Ready)
@@ -146,7 +151,10 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Get("/classes/{classSlug}/semesters/{semesterSlug}/subjects/{subjectSlug}/units/{unitSlug}/chapters/{chapterSlug}", publicHandler.Notes)
 
 	r.Get("/admin/login", adminAuthHandler.ShowLogin)
-	r.With(ratelimit.Middleware(deps.LoginRateLimiter)).Post("/admin/login", adminAuthHandler.Login)
+	r.With(ratelimit.Middleware(
+		deps.LoginRateLimiter,
+		errorHandler.TooManyRequests,
+	)).Post("/admin/login", adminAuthHandler.Login)
 
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.RequireAdmin)
@@ -202,6 +210,8 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/admin/users", adminManagementHandler.Store)
 		})
 	})
+
+	r.NotFound(errorHandler.NotFound)
 
 	return deps.SessionManager.LoadAndSave(noSurf(r))
 }
