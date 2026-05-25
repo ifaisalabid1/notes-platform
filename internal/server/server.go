@@ -68,6 +68,12 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.Renderer,
 	)
 
+	adminAccountHandler := handlers.NewAdminAccountHandler(
+		adminRepo,
+		deps.SessionManager,
+		deps.Renderer,
+	)
+
 	adminManagementHandler := handlers.NewAdminManagementHandler(
 		adminRepo,
 		deps.SessionManager,
@@ -147,6 +153,8 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Get("/admin/dashboard", adminAuthHandler.Dashboard)
 		r.Post("/admin/logout", adminAuthHandler.Logout)
+		r.Get("/admin/account/password", adminAccountHandler.ShowPassword)
+		r.Post("/admin/account/password", adminAccountHandler.UpdatePassword)
 
 		r.Get("/admin/classes", adminClassHandler.Index)
 		r.Post("/admin/classes", adminClassHandler.Store)

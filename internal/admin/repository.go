@@ -312,3 +312,28 @@ func (r *Repository) List(ctx context.Context) ([]Admin, error) {
 
 	return admins, nil
 }
+
+func (r *Repository) UpdatePassword(ctx context.Context, adminID uuid.UUID, passwordHash string) error {
+	if adminID == uuid.Nil {
+		return ErrAdminNotFound
+	}
+
+	if strings.TrimSpace(passwordHash) == "" {
+		return errors.New("password hash is required")
+	}
+
+	commandTag, err := r.pool.Exec(ctx, `
+		UPDATE admins
+		SET password_hash = $2
+		WHERE id = $1
+	`, adminID, passwordHash)
+	if err != nil {
+		return fmt.Errorf("update admin password: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return ErrAdminNotFound
+	}
+
+	return nil
+}
