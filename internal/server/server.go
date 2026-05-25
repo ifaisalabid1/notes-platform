@@ -16,19 +16,21 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
 	"github.com/ifaisalabid1/notes-platform/internal/handlers"
+	"github.com/ifaisalabid1/notes-platform/internal/ratelimit"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 	"github.com/ifaisalabid1/notes-platform/internal/watermark"
 )
 
 type Dependencies struct {
-	DB              *database.DB
-	R2              *storage.R2Client
-	PDFWatermarker  *watermark.PDFWatermarker
-	FileProxySigner *fileproxy.Signer
-	SessionManager  *scs.SessionManager
-	Renderer        *views.Renderer
-	EmbeddedFS      fs.FS
+	DB               *database.DB
+	R2               *storage.R2Client
+	PDFWatermarker   *watermark.PDFWatermarker
+	FileProxySigner  *fileproxy.Signer
+	SessionManager   *scs.SessionManager
+	Renderer         *views.Renderer
+	EmbeddedFS       fs.FS
+	LoginRateLimiter *ratelimit.IPLimiter
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -138,7 +140,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Get("/classes/{classSlug}/semesters/{semesterSlug}/subjects/{subjectSlug}/units/{unitSlug}/chapters/{chapterSlug}", publicHandler.Notes)
 
 	r.Get("/admin/login", adminAuthHandler.ShowLogin)
-	r.Post("/admin/login", adminAuthHandler.Login)
+	r.With(ratelimit.Middleware(deps.LoginRateLimiter)).Post("/admin/login", adminAuthHandler.Login)
 
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.RequireAdmin)

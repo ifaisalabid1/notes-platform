@@ -12,10 +12,12 @@ import (
 
 	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
+	"golang.org/x/time/rate"
 
 	"github.com/ifaisalabid1/notes-platform/internal/config"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
+	"github.com/ifaisalabid1/notes-platform/internal/ratelimit"
 	"github.com/ifaisalabid1/notes-platform/internal/server"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
@@ -85,14 +87,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	loginRateLimiter := ratelimit.NewIPLimiter(
+		rate.Every(10*time.Second),
+		5,
+		30*time.Minute,
+	)
+
 	router := server.NewRouter(server.Dependencies{
-		DB:              db,
-		R2:              r2Client,
-		PDFWatermarker:  pdfWatermarker,
-		FileProxySigner: fileProxySigner,
-		SessionManager:  sessionManager,
-		Renderer:        renderer,
-		EmbeddedFS:      webassets.FS,
+		DB:               db,
+		R2:               r2Client,
+		PDFWatermarker:   pdfWatermarker,
+		FileProxySigner:  fileProxySigner,
+		SessionManager:   sessionManager,
+		Renderer:         renderer,
+		EmbeddedFS:       webassets.FS,
+		LoginRateLimiter: loginRateLimiter,
 	})
 
 	httpServer := &http.Server{
