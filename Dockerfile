@@ -10,7 +10,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY web ./web
-RUN pnpm run css:build
+RUN pnpm css:build
 
 
 FROM golang:1.26-alpine AS builder
