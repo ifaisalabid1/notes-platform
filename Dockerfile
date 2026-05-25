@@ -10,7 +10,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY web ./web
-RUN pnpm css:build
+RUN pnpm run css:build
 
 
 FROM golang:1.26-alpine AS builder
@@ -32,6 +32,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/server \
     ./cmd/web
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags="-s -w" \
+    -o /out/migrate \
+    ./cmd/migrate
+
 
 FROM alpine:3.21 AS runtime
 
@@ -42,6 +48,7 @@ RUN apk add --no-cache ca-certificates tzdata \
     && adduser -S app -G app
 
 COPY --from=builder /out/server /app/server
+COPY --from=builder /out/migrate /app/migrate
 
 USER app
 

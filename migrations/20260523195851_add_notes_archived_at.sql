@@ -1,8 +1,8 @@
 -- +goose Up
 ALTER TABLE notes
-ADD COLUMN archived_at TIMESTAMPTZ;
+ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
 
-CREATE INDEX notes_archived_at_idx ON notes (archived_at);
+CREATE INDEX IF NOT EXISTS notes_archived_at_idx ON notes (archived_at);
 
 -- +goose Down
 DROP INDEX IF EXISTS notes_archived_at_idx;
