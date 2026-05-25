@@ -134,6 +134,8 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.AppBaseURL,
 	)
 
+	staticPageHandler := handlers.NewStaticPageHandler(deps.Renderer)
+
 	adminHTMXHandler := handlers.NewAdminHTMXHandler(
 		publicRepo,
 		deps.Renderer,
@@ -152,6 +154,12 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Get("/", publicHandler.Home)
 	r.Get("/robots.txt", seoHandler.Robots)
 	r.Get("/sitemap.xml", seoHandler.Sitemap)
+
+	r.Get("/about", staticPageHandler.About)
+	r.Get("/contact", staticPageHandler.Contact)
+	r.Get("/privacy", staticPageHandler.Privacy)
+	r.Get("/terms", staticPageHandler.Terms)
+
 	r.Get("/classes/{classSlug}", publicHandler.Semesters)
 	r.Get("/classes/{classSlug}/semesters/{semesterSlug}", publicHandler.Subjects)
 	r.Get("/classes/{classSlug}/semesters/{semesterSlug}/subjects/{subjectSlug}", publicHandler.Units)
