@@ -31,6 +31,7 @@ type Dependencies struct {
 	Renderer         *views.Renderer
 	EmbeddedFS       fs.FS
 	LoginRateLimiter *ratelimit.IPLimiter
+	AppBaseURL       string
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -128,6 +129,11 @@ func NewRouter(deps Dependencies) http.Handler {
 		deps.Renderer,
 	)
 
+	seoHandler := handlers.NewSEOHandler(
+		publicRepo,
+		deps.AppBaseURL,
+	)
+
 	adminHTMXHandler := handlers.NewAdminHTMXHandler(
 		publicRepo,
 		deps.Renderer,
@@ -144,6 +150,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Get("/readyz", healthHandler.Ready)
 
 	r.Get("/", publicHandler.Home)
+	r.Get("/robots.txt", seoHandler.Robots)
+	r.Get("/sitemap.xml", seoHandler.Sitemap)
 	r.Get("/classes/{classSlug}", publicHandler.Semesters)
 	r.Get("/classes/{classSlug}/semesters/{semesterSlug}", publicHandler.Subjects)
 	r.Get("/classes/{classSlug}/semesters/{semesterSlug}/subjects/{subjectSlug}", publicHandler.Units)

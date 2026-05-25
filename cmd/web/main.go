@@ -102,6 +102,7 @@ func main() {
 		Renderer:         renderer,
 		EmbeddedFS:       webassets.FS,
 		LoginRateLimiter: loginRateLimiter,
+		AppBaseURL:       cfg.AppBaseURL,
 	})
 
 	httpServer := &http.Server{
