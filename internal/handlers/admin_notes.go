@@ -86,10 +86,18 @@ func (h *AdminNoteHandler) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(uploads.MaxUploadSizeBytes); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, uploads.MaxUploadSizeBytes)
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		h.renderIndexWithError(w, r, "Invalid upload. File may be too large.")
 		return
 	}
+
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 
 	chapterIDValue := strings.TrimSpace(r.PostForm.Get("chapter_id"))
 	title := strings.TrimSpace(r.PostForm.Get("title"))

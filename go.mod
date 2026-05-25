@@ -17,6 +17,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/justinas/nosurf v1.2.0
 	github.com/pdfcpu/pdfcpu v0.12.1
+	github.com/pressly/goose/v3 v3.27.1
 	golang.org/x/crypto v0.51.0
 	golang.org/x/term v0.43.0
 )
@@ -46,7 +47,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pressly/goose/v3 v3.27.1 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/image v0.40.0 // indirect
