@@ -197,13 +197,21 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 		UploadedBy:       uploadedBy,
 	})
 	if err != nil {
+		if cleanupErr := h.r2.DeleteObject(r.Context(), storageKey); cleanupErr != nil {
+			slog.Error(
+				"failed to cleanup r2 object after note metadata error",
+				"storage_key", storageKey,
+				"error", cleanupErr,
+			)
+		}
+
 		if isUniqueViolation(err) {
 			h.renderIndexWithError(w, r, "A note with this title already exists for the selected chapter.")
 			return
 		}
 
 		slog.Error("failed to save note metadata", "error", err)
-		h.renderIndexWithError(w, r, "File uploaded, but failed to save note metadata.")
+		h.renderIndexWithError(w, r, "Failed to save note metadata. Uploaded file was cleaned up.")
 		return
 	}
 

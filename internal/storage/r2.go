@@ -152,3 +152,21 @@ func cleanObjectKey(key string) string {
 
 	return key
 }
+
+func (c *R2Client) DeleteObject(ctx context.Context, key string) error {
+	key = cleanObjectKey(key)
+
+	if key == "" {
+		return fmt.Errorf("object key is required")
+	}
+
+	_, err := c.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(c.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf("delete object from r2: %w", err)
+	}
+
+	return nil
+}
