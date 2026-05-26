@@ -64,6 +64,10 @@
   td {
     @apply border-b border-academic-100 px-4 py-3 text-academic-700;
   }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
 }
 
 @layer components {

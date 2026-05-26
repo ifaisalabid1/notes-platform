@@ -35,47 +35,170 @@
 
     <body>
       <div class="app-shell">
-        <header class="border-b border-academic-200 bg-white">
-          <div
-            class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8"
-          >
-            <a
-              href="/"
-              class="flex items-center gap-2 text-academic-900 no-underline hover:no-underline"
-            >
-              <span
-                class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-700 text-sm font-bold text-white"
+        <header
+          class="sticky top-0 z-50 border-b border-academic-200 bg-white/95 backdrop-blur"
+        >
+          <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="flex min-h-16 items-center justify-between gap-4">
+              <a
+                href="/"
+                class="flex shrink-0 items-center gap-3 text-academic-900 no-underline hover:no-underline"
               >
-                NP
-              </span>
-              <span class="text-base font-bold">Notes Platform</span>
-            </a>
+                <span
+                  class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-700 text-sm font-bold text-white"
+                >
+                  NP
+                </span>
 
-            <form
-              method="get"
-              action="/search"
-              class="hidden w-full max-w-sm md:block"
-            >
-              <label for="site-search" class="sr-only">Search notes</label>
-              <input
-                id="site-search"
-                name="q"
-                type="search"
-                placeholder="Search notes..."
-                class="h-10"
-              />
-            </form>
+                <span class="leading-tight">
+                  <span class="block text-base font-bold">Notes Platform</span>
+                  <span
+                    class="hidden text-xs font-medium text-academic-500 sm:block"
+                  >
+                    Classroom notes
+                  </span>
+                </span>
+              </a>
 
-            <nav class="flex items-center gap-5">
-              <a class="nav-link" href="/">Browse Notes</a>
+              <form
+                method="get"
+                action="/search"
+                class="hidden w-full max-w-md md:block"
+              >
+                <label for="desktop-site-search" class="sr-only"
+                  >Search notes</label
+                >
+                <div class="relative">
+                  <input
+                    id="desktop-site-search"
+                    name="q"
+                    type="search"
+                    placeholder="Search notes, subjects, chapters..."
+                    class="h-11 w-full rounded-xl border-academic-300 bg-academic-50 pl-4 pr-20 text-sm focus:border-brand-500 focus:bg-white focus:ring-brand-100"
+                  />
+                  <button
+                    type="submit"
+                    class="absolute right-1.5 top-1.5 rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-800"
+                  >
+                    Search
+                  </button>
+                </div>
+              </form>
 
-              {{ if .IsAuthenticated }}
-                <a class="nav-link" href="/admin/dashboard">Dashboard</a>
-                <a class="nav-link" href="/admin/notes">Notes</a>
-              {{ else }}
-                <a class="nav-link" href="/admin/login">Admin Login</a>
-              {{ end }}
-            </nav>
+              <nav class="hidden items-center gap-5 md:flex">
+                <a class="nav-link" href="/">Browse</a>
+                <a class="nav-link" href="/search">Search</a>
+                <a class="nav-link" href="/about">About</a>
+
+                {{ if .IsAuthenticated }}
+                  <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+                  <a class="nav-link" href="/admin/notes">Notes</a>
+                {{ else }}
+                  <a class="nav-link" href="/admin/login">Admin Login</a>
+                {{ end }}
+              </nav>
+
+              <details class="relative md:hidden">
+                <summary
+                  class="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-academic-200 bg-white text-academic-700 shadow-sm marker:hidden"
+                >
+                  <span class="sr-only">Open menu</span>
+                  <span class="text-xl leading-none">☰</span>
+                </summary>
+
+                <div
+                  class="absolute right-0 mt-3 w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-academic-200 bg-white p-4 shadow-xl"
+                >
+                  <form method="get" action="/search">
+                    <label for="mobile-site-search" class="sr-only"
+                      >Search notes</label
+                    >
+                    <div class="space-y-3">
+                      <input
+                        id="mobile-site-search"
+                        name="q"
+                        type="search"
+                        placeholder="Search notes..."
+                        class="h-11 w-full rounded-xl border-academic-300 bg-academic-50 text-sm focus:border-brand-500 focus:bg-white focus:ring-brand-100"
+                      />
+
+                      <button type="submit" class="btn-primary w-full">
+                        Search Notes
+                      </button>
+                    </div>
+                  </form>
+
+                  <nav
+                    class="mt-4 grid gap-1 border-t border-academic-200 pt-4"
+                  >
+                    <a
+                      class="rounded-xl px-3 py-2 text-sm font-medium text-academic-700 hover:bg-academic-50 hover:text-brand-700"
+                      href="/"
+                    >
+                      Browse Notes
+                    </a>
+
+                    <a
+                      class="rounded-xl px-3 py-2 text-sm font-medium text-academic-700 hover:bg-academic-50 hover:text-brand-700"
+                      href="/search"
+                    >
+                      Search
+                    </a>
+
+                    <a
+                      class="rounded-xl px-3 py-2 text-sm font-medium text-academic-700 hover:bg-academic-50 hover:text-brand-700"
+                      href="/about"
+                    >
+                      About
+                    </a>
+
+                    <a
+                      class="rounded-xl px-3 py-2 text-sm font-medium text-academic-700 hover:bg-academic-50 hover:text-brand-700"
+                      href="/contact"
+                    >
+                      Contact
+                    </a>
+
+                    {{ if .IsAuthenticated }}
+                      <a
+                        class="rounded-xl px-3 py-2 text-sm font-medium text-academic-700 hover:bg-academic-50 hover:text-brand-700"
+                        href="/admin/dashboard"
+                      >
+                        Dashboard
+                      </a>
+
+                      <a
+                        class="rounded-xl px-3 py-2 text-sm font-medium text-academic-700 hover:bg-academic-50 hover:text-brand-700"
+                        href="/admin/notes"
+                      >
+                        Notes
+                      </a>
+
+                      <form method="post" action="/admin/logout" class="pt-2">
+                        <input
+                          type="hidden"
+                          name="csrf_token"
+                          value="{{ .CSRFToken }}"
+                        />
+                        <button
+                          type="submit"
+                          class="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                        >
+                          Logout
+                        </button>
+                      </form>
+                    {{ else }}
+                      <a
+                        class="rounded-xl px-3 py-2 text-sm font-medium text-academic-700 hover:bg-academic-50 hover:text-brand-700"
+                        href="/admin/login"
+                      >
+                        Admin Login
+                      </a>
+                    {{ end }}
+                  </nav>
+                </div>
+              </details>
+            </div>
           </div>
         </header>
 
