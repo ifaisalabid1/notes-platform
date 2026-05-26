@@ -20,6 +20,73 @@
       </form>
     </div>
 
+    <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="card">
+        <p class="text-sm font-medium text-academic-500">Classes</p>
+        <p class="mt-2 text-3xl font-bold text-academic-900">
+          {{ .Data.Stats.Classes }}
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="text-sm font-medium text-academic-500">Subjects</p>
+        <p class="mt-2 text-3xl font-bold text-academic-900">
+          {{ .Data.Stats.Subjects }}
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="text-sm font-medium text-academic-500">Chapters</p>
+        <p class="mt-2 text-3xl font-bold text-academic-900">
+          {{ .Data.Stats.Chapters }}
+        </p>
+      </div>
+
+      <div class="card">
+        <p class="text-sm font-medium text-academic-500">Active Notes</p>
+        <p class="mt-2 text-3xl font-bold text-brand-700">
+          {{ .Data.Stats.ActiveNotes }}
+        </p>
+      </div>
+    </section>
+
+    <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div class="rounded-2xl border border-academic-200 bg-white p-5">
+        <p class="text-sm font-medium text-academic-500">Semesters</p>
+        <p class="mt-2 text-2xl font-bold text-academic-900">
+          {{ .Data.Stats.Semesters }}
+        </p>
+      </div>
+
+      <div class="rounded-2xl border border-academic-200 bg-white p-5">
+        <p class="text-sm font-medium text-academic-500">Units</p>
+        <p class="mt-2 text-2xl font-bold text-academic-900">
+          {{ .Data.Stats.Units }}
+        </p>
+      </div>
+
+      <div class="rounded-2xl border border-academic-200 bg-white p-5">
+        <p class="text-sm font-medium text-academic-500">Archived Notes</p>
+        <p class="mt-2 text-2xl font-bold text-academic-900">
+          {{ .Data.Stats.ArchivedNotes }}
+        </p>
+      </div>
+
+      <div class="rounded-2xl border border-academic-200 bg-white p-5">
+        <p class="text-sm font-medium text-academic-500">Admins</p>
+        <p class="mt-2 text-2xl font-bold text-academic-900">
+          {{ .Data.Stats.Admins }}
+        </p>
+      </div>
+
+      <div class="rounded-2xl border border-academic-200 bg-white p-5">
+        <p class="text-sm font-medium text-academic-500">Audit Events</p>
+        <p class="mt-2 text-2xl font-bold text-academic-900">
+          {{ .Data.Stats.AuditEvents }}
+        </p>
+      </div>
+    </section>
+
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <a
         href="/admin/classes"

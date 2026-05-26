@@ -14,6 +14,7 @@ import (
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
 	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
+	"github.com/ifaisalabid1/notes-platform/internal/dashboard"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
 	"github.com/ifaisalabid1/notes-platform/internal/handlers"
@@ -68,6 +69,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	chapterRepo := academic.NewChapterRepository(deps.DB.Pool)
 	noteRepo := academic.NewNoteRepository(deps.DB.Pool)
 	auditRepo := audit.NewRepository(deps.DB.Pool)
+	dashboardRepo := dashboard.NewRepository(deps.DB.Pool)
 
 	publicRepo := academic.NewPublicRepository(deps.DB.Pool)
 
@@ -78,8 +80,8 @@ func NewRouter(deps Dependencies) http.Handler {
 
 	adminAuthHandler := handlers.NewAdminAuthHandler(
 		adminRepo,
+		dashboardRepo,
 		deps.SessionManager,
-		auditRepo,
 		deps.Renderer,
 	)
 

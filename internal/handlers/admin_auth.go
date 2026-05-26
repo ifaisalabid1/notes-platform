@@ -9,30 +9,34 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
-	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
+	"github.com/ifaisalabid1/notes-platform/internal/dashboard"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type AdminAuthHandler struct {
 	adminRepo      *admin.Repository
+	dashboardRepo  *dashboard.Repository
 	sessionManager *scs.SessionManager
-	auditRepo      *audit.Repository
 	renderer       *views.Renderer
 }
 
 func NewAdminAuthHandler(
 	adminRepo *admin.Repository,
+	dashboardRepo *dashboard.Repository,
 	sessionManager *scs.SessionManager,
-	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminAuthHandler {
 	return &AdminAuthHandler{
 		adminRepo:      adminRepo,
+		dashboardRepo:  dashboardRepo,
 		sessionManager: sessionManager,
-		auditRepo:      auditRepo,
 		renderer:       renderer,
 	}
+}
+
+type AdminDashboardPageData struct {
+	Stats dashboard.Stats
 }
 
 func (h *AdminAuthHandler) ShowLogin(w http.ResponseWriter, r *http.Request) {
@@ -110,8 +114,17 @@ func (h *AdminAuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminAuthHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.dashboardRepo.Stats(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to load dashboard", http.StatusInternalServerError)
+		return
+	}
+
 	h.renderer.Render(w, r, "admin_dashboard.tmpl", views.TemplateData{
-		Title: "Admin Dashboard",
+		Title: "Dashboard",
+		Data: AdminDashboardPageData{
+			Stats: stats,
+		},
 	})
 }
 
