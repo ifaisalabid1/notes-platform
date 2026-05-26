@@ -88,6 +88,17 @@ type CreateNoteParams struct {
 	UploadedBy       uuid.UUID
 }
 
+type UpdateNoteFileParams struct {
+	ID               uuid.UUID
+	OriginalFileName string
+	StoredFileName   string
+	StorageKey       string
+	ContentType      string
+	FileSizeBytes    int64
+	IsPDF            bool
+	IsWatermarked    bool
+}
+
 func (r *NoteRepository) Create(ctx context.Context, params CreateNoteParams) (Note, error) {
 	title := strings.TrimSpace(params.Title)
 	description := strings.TrimSpace(params.Description)
@@ -769,4 +780,110 @@ func (r *NoteRepository) DeleteArchived(ctx context.Context, id uuid.UUID) (Note
 	}
 
 	return deleted, nil
+}
+
+func (r *NoteRepository) UpdateFile(ctx context.Context, params UpdateNoteFileParams) (Note, error) {
+	if params.ID == uuid.Nil {
+		return Note{}, ErrNoteNotFound
+	}
+
+	originalFileName := strings.TrimSpace(params.OriginalFileName)
+	storedFileName := strings.TrimSpace(params.StoredFileName)
+	storageKey := strings.TrimSpace(params.StorageKey)
+	contentType := strings.TrimSpace(params.ContentType)
+
+	if originalFileName == "" {
+		return Note{}, errors.New("original file name is required")
+	}
+
+	if storedFileName == "" {
+		return Note{}, errors.New("stored file name is required")
+	}
+
+	if storageKey == "" {
+		return Note{}, errors.New("storage key is required")
+	}
+
+	if contentType == "" {
+		return Note{}, errors.New("content type is required")
+	}
+
+	if params.FileSizeBytes <= 0 {
+		return Note{}, errors.New("file size must be greater than zero")
+	}
+
+	var updated Note
+
+	err := r.pool.QueryRow(ctx, `
+		UPDATE notes
+		SET
+			original_file_name = $2,
+			stored_file_name = $3,
+			storage_key = $4,
+			content_type = $5,
+			file_size_bytes = $6,
+			is_pdf = $7,
+			is_watermarked = $8
+		WHERE id = $1
+		RETURNING
+			id,
+			chapter_id,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			download_count,
+			view_count,
+			sort_order,
+			is_published,
+			uploaded_by,
+			archived_at,
+			created_at,
+			updated_at
+	`,
+		params.ID,
+		originalFileName,
+		storedFileName,
+		storageKey,
+		contentType,
+		params.FileSizeBytes,
+		params.IsPDF,
+		params.IsWatermarked,
+	).Scan(
+		&updated.ID,
+		&updated.ChapterID,
+		&updated.Title,
+		&updated.Slug,
+		&updated.Description,
+		&updated.OriginalFileName,
+		&updated.StoredFileName,
+		&updated.StorageKey,
+		&updated.ContentType,
+		&updated.FileSizeBytes,
+		&updated.IsPDF,
+		&updated.IsWatermarked,
+		&updated.DownloadCount,
+		&updated.ViewCount,
+		&updated.SortOrder,
+		&updated.IsPublished,
+		&updated.UploadedBy,
+		&updated.ArchivedAt,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Note{}, ErrNoteNotFound
+		}
+
+		return Note{}, fmt.Errorf("update note file: %w", err)
+	}
+
+	return updated, nil
 }

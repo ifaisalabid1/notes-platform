@@ -56,6 +56,36 @@
             View Current File
           </a>
         </div>
+
+        <div class="mt-6 border-t border-academic-200 pt-6">
+          <h3 class="text-sm font-semibold text-academic-900">Replace file</h3>
+
+          <p class="mt-2 text-sm leading-6 text-academic-600">
+            Upload a new file to replace the current stored file. The old file
+            will be deleted from R2 only after the new file is saved
+            successfully.
+          </p>
+
+          <form
+            method="post"
+            action="/admin/notes/{{ .Data.Note.ID }}/replace-file"
+            enctype="multipart/form-data"
+            class="mt-4 space-y-4"
+          >
+            <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+
+            <div>
+              <label for="replacement_file">New file</label>
+              <input id="replacement_file" name="file" type="file" required />
+              <p class="mt-2 text-xs leading-5 text-academic-500">
+                Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX, PPTX, XLS, XLSX, TXT.
+                Max size: 50 MB.
+              </p>
+            </div>
+
+            <button type="submit" class="btn-secondary">Replace File</button>
+          </form>
+        </div>
       </div>
 
       <form

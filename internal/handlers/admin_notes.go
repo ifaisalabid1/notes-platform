@@ -677,3 +677,142 @@ func (h *AdminNoteHandler) DeleteArchived(w http.ResponseWriter, r *http.Request
 
 	http.Redirect(w, r, "/admin/notes?filter=archived", http.StatusSeeOther)
 }
+
+func (h *AdminNoteHandler) ReplaceFile(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	existingNote, err := h.noteRepo.FindByID(r.Context(), noteID)
+	if err != nil {
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to find note before file replacement", "error", err)
+		h.renderEditWithError(w, r, noteID, "Failed to load note.")
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, uploads.MaxUploadSizeBytes)
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		h.renderEditWithError(w, r, noteID, "Invalid upload. File may be too large.")
+		return
+	}
+
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
+
+	file, fileHeader, err := r.FormFile("file")
+	if err != nil {
+		h.renderEditWithError(w, r, noteID, "Replacement file is required.")
+		return
+	}
+	defer file.Close()
+
+	validatedFile, err := uploads.ValidateUploadedFile(file, fileHeader)
+	if err != nil {
+		h.renderEditWithError(w, r, noteID, err.Error())
+		return
+	}
+
+	storedFileName := fmt.Sprintf(
+		"%s%s",
+		uuid.NewString(),
+		strings.ToLower(filepath.Ext(validatedFile.OriginalFileName)),
+	)
+
+	storageKey := fmt.Sprintf(
+		"notes/%s/%s",
+		time.Now().UTC().Format("2006/01/02"),
+		storedFileName,
+	)
+
+	fileData := validatedFile.Data
+	fileSizeBytes := validatedFile.SizeBytes
+	isWatermarked := false
+
+	if validatedFile.IsPDF {
+		watermarkedPDF, err := h.pdfWatermarker.Apply(validatedFile.Data)
+		if err != nil {
+			slog.Error("failed to watermark replacement pdf", "error", err)
+			h.renderEditWithError(w, r, noteID, "Failed to watermark replacement PDF.")
+			return
+		}
+
+		fileData = watermarkedPDF.Data
+		fileSizeBytes = int64(len(watermarkedPDF.Data))
+		isWatermarked = true
+	}
+
+	_, err = h.r2.UploadObject(r.Context(), storage.UploadObjectParams{
+		Key:         storageKey,
+		Body:        uploads.Reader(fileData),
+		ContentType: validatedFile.ContentType,
+		SizeBytes:   fileSizeBytes,
+	})
+	if err != nil {
+		slog.Error("failed to upload replacement file to r2", "error", err)
+		h.renderEditWithError(w, r, noteID, "Failed to upload replacement file.")
+		return
+	}
+
+	_, err = h.noteRepo.UpdateFile(r.Context(), academic.UpdateNoteFileParams{
+		ID:               noteID,
+		OriginalFileName: validatedFile.OriginalFileName,
+		StoredFileName:   storedFileName,
+		StorageKey:       storageKey,
+		ContentType:      validatedFile.ContentType,
+		FileSizeBytes:    fileSizeBytes,
+		IsPDF:            validatedFile.IsPDF,
+		IsWatermarked:    isWatermarked,
+	})
+	if err != nil {
+		if cleanupErr := h.r2.DeleteObject(r.Context(), storageKey); cleanupErr != nil {
+			slog.Error(
+				"failed to cleanup replacement r2 object after note file update error",
+				"storage_key", storageKey,
+				"error", cleanupErr,
+			)
+		}
+
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to update note file metadata", "error", err)
+		h.renderEditWithError(w, r, noteID, "Failed to update note file metadata.")
+		return
+	}
+
+	if err := h.r2.DeleteObject(r.Context(), existingNote.StorageKey); err != nil {
+		slog.Error(
+			"failed to delete old r2 object after file replacement",
+			"note_id", noteID.String(),
+			"old_storage_key", existingNote.StorageKey,
+			"new_storage_key", storageKey,
+			"error", err,
+		)
+
+		h.sessionManager.Put(
+			r.Context(),
+			"flash",
+			"File replaced, but old file cleanup failed. Check logs and R2 manually.",
+		)
+
+		http.Redirect(w, r, "/admin/notes/"+noteID.String()+"/edit", http.StatusSeeOther)
+		return
+	}
+
+	h.sessionManager.Put(r.Context(), "flash", "Note file replaced successfully.")
+
+	http.Redirect(w, r, "/admin/notes/"+noteID.String()+"/edit", http.StatusSeeOther)
+}

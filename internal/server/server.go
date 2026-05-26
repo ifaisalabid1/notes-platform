@@ -211,6 +211,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		r.Post("/admin/notes", adminNoteHandler.Store)
 		r.Get("/admin/notes/{noteID}/edit", adminNoteHandler.Edit)
 		r.Post("/admin/notes/{noteID}/edit", adminNoteHandler.Update)
+		r.Post("/admin/notes/{noteID}/replace-file", adminNoteHandler.ReplaceFile)
 		r.Post("/admin/notes/{noteID}/archive", adminNoteHandler.Archive)
 		r.Post("/admin/notes/{noteID}/unarchive", adminNoteHandler.Unarchive)
 		r.Get("/admin/notes/{noteID}/delete", adminNoteHandler.ConfirmDeleteArchived)
