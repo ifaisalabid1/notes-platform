@@ -37,10 +37,12 @@ type Dependencies struct {
 func NewRouter(deps Dependencies) http.Handler {
 	r := chi.NewRouter()
 
+	errorHandler := handlers.NewErrorHandler(deps.Renderer)
+
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(requestLogger)
-	r.Use(middleware.Recoverer)
+	r.Use(recoverer(errorHandler.InternalServerError))
 	r.Use(securityHeaders)
 	r.Use(middleware.Timeout(60 * time.Second))
 
@@ -141,8 +143,6 @@ func NewRouter(deps Dependencies) http.Handler {
 		publicRepo,
 		deps.Renderer,
 	)
-
-	errorHandler := handlers.NewErrorHandler(deps.Renderer)
 
 	authMiddleware := auth.NewMiddleware(
 		deps.SessionManager,
