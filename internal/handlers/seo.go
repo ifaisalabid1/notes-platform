@@ -29,6 +29,7 @@ func (h *SEOHandler) Robots(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, "User-agent: *\n")
 	_, _ = fmt.Fprintf(w, "Allow: /\n")
 	_, _ = fmt.Fprintf(w, "Disallow: /admin/\n")
+	_, _ = fmt.Fprintf(w, "Disallow: /search\n")
 	_, _ = fmt.Fprintf(w, "\n")
 	_, _ = fmt.Fprintf(w, "Sitemap: %s/sitemap.xml\n", h.baseURL)
 }
@@ -47,12 +48,38 @@ type sitemapURL struct {
 }
 
 func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
+	now := time.Now().UTC().Format("2006-01-02")
+
 	urls := []sitemapURL{
 		{
-			Loc:        h.baseURL + "/",
-			LastMod:    time.Now().UTC().Format("2006-01-02"),
+			Loc:        h.urlFor("/"),
+			LastMod:    now,
 			ChangeFreq: "daily",
 			Priority:   "1.0",
+		},
+		{
+			Loc:        h.urlFor("/about"),
+			LastMod:    now,
+			ChangeFreq: "monthly",
+			Priority:   "0.4",
+		},
+		{
+			Loc:        h.urlFor("/contact"),
+			LastMod:    now,
+			ChangeFreq: "monthly",
+			Priority:   "0.4",
+		},
+		{
+			Loc:        h.urlFor("/privacy"),
+			LastMod:    now,
+			ChangeFreq: "monthly",
+			Priority:   "0.3",
+		},
+		{
+			Loc:        h.urlFor("/terms"),
+			LastMod:    now,
+			ChangeFreq: "monthly",
+			Priority:   "0.3",
 		},
 	}
 
@@ -64,11 +91,11 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, classItem := range classes {
-		classURL := fmt.Sprintf("%s/classes/%s", h.baseURL, classItem.Slug)
+		classPath := fmt.Sprintf("/classes/%s", classItem.Slug)
 
 		urls = append(urls, sitemapURL{
-			Loc:        classURL,
-			LastMod:    classItem.UpdatedAt.UTC().Format("2006-01-02"),
+			Loc:        h.urlFor(classPath),
+			LastMod:    lastModDate(classItem.UpdatedAt),
 			ChangeFreq: "weekly",
 			Priority:   "0.8",
 		})
@@ -80,16 +107,15 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, semesterItem := range semesters {
-			semesterURL := fmt.Sprintf(
-				"%s/classes/%s/semesters/%s",
-				h.baseURL,
+			semesterPath := fmt.Sprintf(
+				"/classes/%s/semesters/%s",
 				classItem.Slug,
 				semesterItem.Slug,
 			)
 
 			urls = append(urls, sitemapURL{
-				Loc:        semesterURL,
-				LastMod:    semesterItem.UpdatedAt.UTC().Format("2006-01-02"),
+				Loc:        h.urlFor(semesterPath),
+				LastMod:    lastModDate(semesterItem.UpdatedAt),
 				ChangeFreq: "weekly",
 				Priority:   "0.7",
 			})
@@ -110,17 +136,16 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 			}
 
 			for _, subjectItem := range subjects {
-				subjectURL := fmt.Sprintf(
-					"%s/classes/%s/semesters/%s/subjects/%s",
-					h.baseURL,
+				subjectPath := fmt.Sprintf(
+					"/classes/%s/semesters/%s/subjects/%s",
 					classItem.Slug,
 					semesterItem.Slug,
 					subjectItem.Slug,
 				)
 
 				urls = append(urls, sitemapURL{
-					Loc:        subjectURL,
-					LastMod:    subjectItem.UpdatedAt.UTC().Format("2006-01-02"),
+					Loc:        h.urlFor(subjectPath),
+					LastMod:    lastModDate(subjectItem.UpdatedAt),
 					ChangeFreq: "weekly",
 					Priority:   "0.7",
 				})
@@ -143,9 +168,8 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 				}
 
 				for _, unitItem := range units {
-					unitURL := fmt.Sprintf(
-						"%s/classes/%s/semesters/%s/subjects/%s/units/%s",
-						h.baseURL,
+					unitPath := fmt.Sprintf(
+						"/classes/%s/semesters/%s/subjects/%s/units/%s",
 						classItem.Slug,
 						semesterItem.Slug,
 						subjectItem.Slug,
@@ -153,8 +177,8 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 					)
 
 					urls = append(urls, sitemapURL{
-						Loc:        unitURL,
-						LastMod:    unitItem.UpdatedAt.UTC().Format("2006-01-02"),
+						Loc:        h.urlFor(unitPath),
+						LastMod:    lastModDate(unitItem.UpdatedAt),
 						ChangeFreq: "weekly",
 						Priority:   "0.6",
 					})
@@ -179,9 +203,8 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 					}
 
 					for _, chapterItem := range chapters {
-						chapterURL := fmt.Sprintf(
-							"%s/classes/%s/semesters/%s/subjects/%s/units/%s/chapters/%s",
-							h.baseURL,
+						chapterPath := fmt.Sprintf(
+							"/classes/%s/semesters/%s/subjects/%s/units/%s/chapters/%s",
 							classItem.Slug,
 							semesterItem.Slug,
 							subjectItem.Slug,
@@ -190,8 +213,8 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 						)
 
 						urls = append(urls, sitemapURL{
-							Loc:        chapterURL,
-							LastMod:    chapterItem.UpdatedAt.UTC().Format("2006-01-02"),
+							Loc:        h.urlFor(chapterPath),
+							LastMod:    lastModDate(chapterItem.UpdatedAt),
 							ChangeFreq: "weekly",
 							Priority:   "0.6",
 						})
@@ -214,4 +237,24 @@ func (h *SEOHandler) Sitemap(w http.ResponseWriter, r *http.Request) {
 	if err := xml.NewEncoder(w).Encode(payload); err != nil {
 		slog.Error("failed to encode sitemap", "error", err)
 	}
+}
+
+func (h *SEOHandler) urlFor(path string) string {
+	if h.baseURL == "" {
+		return path
+	}
+
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	return h.baseURL + path
+}
+
+func lastModDate(t time.Time) string {
+	if t.IsZero() {
+		return time.Now().UTC().Format("2006-01-02")
+	}
+
+	return t.UTC().Format("2006-01-02")
 }
