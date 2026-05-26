@@ -38,6 +38,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/migrate \
     ./cmd/migrate
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags="-s -w" \
+    -o /out/bootstrap-owner \
+    ./cmd/bootstrap-owner
+
 
 FROM alpine:3.21 AS runtime
 
@@ -49,6 +55,7 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 COPY --from=builder /out/server /app/server
 COPY --from=builder /out/migrate /app/migrate
+COPY --from=builder /out/bootstrap-owner /app/bootstrap-owner
 
 USER app
 

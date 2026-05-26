@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import "@fontsource-variable/inter/wght.css";
+@import "tailwindcss";
 
 @source "../../templates/**/*.tmpl";
 @source "../../templates/**/*.html";

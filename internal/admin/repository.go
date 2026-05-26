@@ -46,12 +46,6 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	}
 }
 
-type CreateOwnerParams struct {
-	Name         string
-	Email        string
-	PasswordHash string
-}
-
 type CreateAdminParams struct {
 	Name         string
 	Email        string
@@ -336,4 +330,27 @@ func (r *Repository) UpdatePassword(ctx context.Context, adminID uuid.UUID, pass
 	}
 
 	return nil
+}
+
+func (r *Repository) OwnerExists(ctx context.Context) (bool, error) {
+	var exists bool
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM admins
+			WHERE is_owner = TRUE
+		)
+	`).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check owner exists: %w", err)
+	}
+
+	return exists, nil
+}
+
+type CreateOwnerParams struct {
+	Name         string
+	Email        string
+	PasswordHash string
 }
