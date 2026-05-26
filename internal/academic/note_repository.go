@@ -52,6 +52,26 @@ func NewNoteRepository(pool *pgxpool.Pool) *NoteRepository {
 	}
 }
 
+type NoteListFilter string
+
+const (
+	NoteListFilterAll      NoteListFilter = "all"
+	NoteListFilterActive   NoteListFilter = "active"
+	NoteListFilterArchived NoteListFilter = "archived"
+)
+
+type ListNotesParams struct {
+	Search string
+	Filter NoteListFilter
+	Limit  int
+	Offset int
+}
+
+type PaginatedNotes struct {
+	Notes      []Note
+	TotalCount int
+}
+
 type CreateNoteParams struct {
 	ChapterID        uuid.UUID
 	Title            string
@@ -535,4 +555,153 @@ func (r *NoteRepository) Unarchive(ctx context.Context, id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+func (r *NoteRepository) ListPaginated(ctx context.Context, params ListNotesParams) (PaginatedNotes, error) {
+	search := strings.TrimSpace(params.Search)
+	filter := params.Filter
+
+	if filter == "" {
+		filter = NoteListFilterActive
+	}
+
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	where := `
+		WHERE (
+			$1 = ''
+			OR n.title ILIKE '%' || $1 || '%'
+			OR n.original_file_name ILIKE '%' || $1 || '%'
+			OR ch.name ILIKE '%' || $1 || '%'
+			OR u.name ILIKE '%' || $1 || '%'
+			OR sub.name ILIKE '%' || $1 || '%'
+			OR sem.name ILIKE '%' || $1 || '%'
+			OR c.name ILIKE '%' || $1 || '%'
+		)
+		AND (
+			$2 = 'all'
+			OR ($2 = 'active' AND n.archived_at IS NULL)
+			OR ($2 = 'archived' AND n.archived_at IS NOT NULL)
+		)
+	`
+
+	var totalCount int
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+	`+where, search, string(filter)).Scan(&totalCount)
+	if err != nil {
+		return PaginatedNotes{}, fmt.Errorf("count notes: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			n.id,
+			n.chapter_id,
+			ch.name AS chapter_name,
+			u.name AS unit_name,
+			sub.name AS subject_name,
+			sem.name AS semester_name,
+			c.name AS class_name,
+			n.title,
+			n.slug,
+			n.description,
+			n.original_file_name,
+			n.stored_file_name,
+			n.storage_key,
+			n.content_type,
+			n.file_size_bytes,
+			n.is_pdf,
+			n.is_watermarked,
+			n.download_count,
+			n.view_count,
+			n.sort_order,
+			n.is_published,
+			n.uploaded_by,
+			n.archived_at,
+			n.created_at,
+			n.updated_at
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+	`+where+`
+		ORDER BY
+			n.archived_at IS NOT NULL ASC,
+			n.created_at DESC,
+			n.title ASC
+		LIMIT $3 OFFSET $4
+	`, search, string(filter), limit, offset)
+	if err != nil {
+		return PaginatedNotes{}, fmt.Errorf("list paginated notes: %w", err)
+	}
+	defer rows.Close()
+
+	notes := make([]Note, 0)
+
+	for rows.Next() {
+		var item Note
+
+		err := rows.Scan(
+			&item.ID,
+			&item.ChapterID,
+			&item.ChapterName,
+			&item.UnitName,
+			&item.SubjectName,
+			&item.SemesterName,
+			&item.ClassName,
+			&item.Title,
+			&item.Slug,
+			&item.Description,
+			&item.OriginalFileName,
+			&item.StoredFileName,
+			&item.StorageKey,
+			&item.ContentType,
+			&item.FileSizeBytes,
+			&item.IsPDF,
+			&item.IsWatermarked,
+			&item.DownloadCount,
+			&item.ViewCount,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.UploadedBy,
+			&item.ArchivedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return PaginatedNotes{}, fmt.Errorf("scan paginated note: %w", err)
+		}
+
+		notes = append(notes, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return PaginatedNotes{}, fmt.Errorf("iterate paginated notes: %w", err)
+	}
+
+	return PaginatedNotes{
+		Notes:      notes,
+		TotalCount: totalCount,
+	}, nil
 }

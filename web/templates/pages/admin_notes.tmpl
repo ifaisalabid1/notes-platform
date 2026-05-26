@@ -149,8 +149,99 @@
       </form>
     </section>
 
+    <section class="card">
+      <form
+        method="get"
+        action="/admin/notes"
+        class="grid gap-4 lg:grid-cols-[1fr_180px_140px_auto] lg:items-end"
+      >
+        <div>
+          <label for="q">Search</label>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            value="{{ .Data.Pagination.Search }}"
+            placeholder="Search title, file, class, subject, chapter..."
+          />
+        </div>
+
+        <div>
+          <label for="filter">Filter</label>
+          <select id="filter" name="filter">
+            <option
+              value="active"
+              {{ if eq .Data.Pagination.Filter "active" }}selected{{ end }}
+            >
+              Active
+            </option>
+            <option
+              value="archived"
+              {{ if eq .Data.Pagination.Filter "archived" }}selected{{ end }}
+            >
+              Archived
+            </option>
+            <option
+              value="all"
+              {{ if eq .Data.Pagination.Filter "all" }}selected{{ end }}
+            >
+              All
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label for="per_page">Per page</label>
+          <select id="per_page" name="per_page">
+            <option
+              value="10"
+              {{ if eq .Data.Pagination.PerPage 10 }}selected{{ end }}
+            >
+              10
+            </option>
+            <option
+              value="20"
+              {{ if eq .Data.Pagination.PerPage 20 }}selected{{ end }}
+            >
+              20
+            </option>
+            <option
+              value="50"
+              {{ if eq .Data.Pagination.PerPage 50 }}selected{{ end }}
+            >
+              50
+            </option>
+            <option
+              value="100"
+              {{ if eq .Data.Pagination.PerPage 100 }}selected{{ end }}
+            >
+              100
+            </option>
+          </select>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary">Apply</button>
+          <a href="/admin/notes" class="btn-secondary">Reset</a>
+        </div>
+      </form>
+    </section>
+
     <section class="space-y-4">
-      <h2 class="section-title">Existing Notes</h2>
+      <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <h2 class="section-title">Existing Notes</h2>
+          <p class="mt-1 text-sm text-academic-500">
+            Showing page {{ .Data.Pagination.Page }} of
+            {{ if .Data.Pagination.TotalPages }}
+              {{ .Data.Pagination.TotalPages }}
+            {{ else }}
+              1
+            {{ end }}
+            · {{ .Data.Pagination.TotalCount }} total notes
+          </p>
+        </div>
+      </div>
 
       {{ with .Data.Notes }}
         <div class="table-wrap overflow-x-auto">
@@ -247,6 +338,43 @@
               {{ end }}
             </tbody>
           </table>
+        </div>
+
+        <div
+          class="flex flex-col justify-between gap-3 pt-4 sm:flex-row sm:items-center"
+        >
+          <p class="text-sm text-academic-500">
+            Page {{ $.Data.Pagination.Page }} of
+            {{ if $.Data.Pagination.TotalPages }}
+              {{ $.Data.Pagination.TotalPages }}
+            {{ else }}
+              1
+            {{ end }}
+          </p>
+
+          <div class="flex gap-2">
+            {{ if $.Data.Pagination.HasPrevious }}
+              <a
+                href="{{ $.Data.Pagination.PreviousURL }}"
+                class="btn-secondary"
+                >Previous</a
+              >
+            {{ else }}
+              <span class="btn-secondary cursor-not-allowed opacity-50"
+                >Previous</span
+              >
+            {{ end }}
+
+            {{ if $.Data.Pagination.HasNext }}
+              <a href="{{ $.Data.Pagination.NextURL }}" class="btn-secondary"
+                >Next</a
+              >
+            {{ else }}
+              <span class="btn-secondary cursor-not-allowed opacity-50"
+                >Next</span
+              >
+            {{ end }}
+          </div>
         </div>
       {{ else }}
         <div class="card-muted">

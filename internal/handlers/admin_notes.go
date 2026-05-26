@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -61,8 +62,22 @@ type AdminNoteListItem struct {
 }
 
 type AdminNotesPageData struct {
-	Classes []academic.Class
-	Notes   []AdminNoteListItem
+	Classes    []academic.Class
+	Notes      []AdminNoteListItem
+	Pagination AdminNotesPagination
+}
+
+type AdminNotesPagination struct {
+	Search      string
+	Filter      string
+	Page        int
+	PerPage     int
+	TotalCount  int
+	TotalPages  int
+	HasPrevious bool
+	HasNext     bool
+	PreviousURL string
+	NextURL     string
 }
 
 type AdminNoteEditPageData struct {
@@ -241,14 +256,53 @@ func (h *AdminNoteHandler) pageData(r *http.Request) (AdminNotesPageData, error)
 		return AdminNotesPageData{}, err
 	}
 
-	notes, err := h.noteRepo.List(r.Context())
+	query := r.URL.Query()
+
+	search := strings.TrimSpace(query.Get("q"))
+	filter := normalizeNoteFilter(query.Get("filter"))
+
+	page := parsePositiveInt(query.Get("page"), 1)
+	perPage := parsePositiveInt(query.Get("per_page"), 20)
+
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	offset := (page - 1) * perPage
+
+	paginatedNotes, err := h.noteRepo.ListPaginated(r.Context(), academic.ListNotesParams{
+		Search: search,
+		Filter: filter,
+		Limit:  perPage,
+		Offset: offset,
+	})
 	if err != nil {
 		return AdminNotesPageData{}, err
 	}
 
-	noteItems := make([]AdminNoteListItem, 0, len(notes))
+	totalPages := 0
+	if paginatedNotes.TotalCount > 0 {
+		totalPages = (paginatedNotes.TotalCount + perPage - 1) / perPage
+	}
 
-	for _, note := range notes {
+	if totalPages > 0 && page > totalPages {
+		page = totalPages
+		offset = (page - 1) * perPage
+
+		paginatedNotes, err = h.noteRepo.ListPaginated(r.Context(), academic.ListNotesParams{
+			Search: search,
+			Filter: filter,
+			Limit:  perPage,
+			Offset: offset,
+		})
+		if err != nil {
+			return AdminNotesPageData{}, err
+		}
+	}
+
+	noteItems := make([]AdminNoteListItem, 0, len(paginatedNotes.Notes))
+
+	for _, note := range paginatedNotes.Notes {
 		fileURL, err := h.fileProxySigner.SignedFileURL(note.StorageKey)
 		if err != nil {
 			return AdminNotesPageData{}, fmt.Errorf("sign note file url: %w", err)
@@ -260,9 +314,34 @@ func (h *AdminNoteHandler) pageData(r *http.Request) (AdminNotesPageData, error)
 		})
 	}
 
+	hasPrevious := page > 1
+	hasNext := totalPages > 0 && page < totalPages
+
+	previousURL := ""
+	if hasPrevious {
+		previousURL = buildAdminNotesURL(search, string(filter), page-1, perPage)
+	}
+
+	nextURL := ""
+	if hasNext {
+		nextURL = buildAdminNotesURL(search, string(filter), page+1, perPage)
+	}
+
 	return AdminNotesPageData{
 		Classes: classes,
 		Notes:   noteItems,
+		Pagination: AdminNotesPagination{
+			Search:      search,
+			Filter:      string(filter),
+			Page:        page,
+			PerPage:     perPage,
+			TotalCount:  paginatedNotes.TotalCount,
+			TotalPages:  totalPages,
+			HasPrevious: hasPrevious,
+			HasNext:     hasNext,
+			PreviousURL: previousURL,
+			NextURL:     nextURL,
+		},
 	}, nil
 }
 
@@ -439,7 +518,13 @@ func (h *AdminNoteHandler) Archive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.sessionManager.Put(r.Context(), "flash", "Note archived successfully.")
-	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
+
+	redirectURL := r.Header.Get("Referer")
+	if redirectURL == "" {
+		redirectURL = "/admin/notes"
+	}
+
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
 func (h *AdminNoteHandler) Unarchive(w http.ResponseWriter, r *http.Request) {
@@ -461,5 +546,48 @@ func (h *AdminNoteHandler) Unarchive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.sessionManager.Put(r.Context(), "flash", "Note restored successfully.")
-	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
+
+	redirectURL := r.Header.Get("Referer")
+	if redirectURL == "" {
+		redirectURL = "/admin/notes"
+	}
+
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+}
+
+func parsePositiveInt(value string, fallback int) int {
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+
+	return parsed
+}
+
+func buildAdminNotesURL(search string, filter string, page int, perPage int) string {
+	values := url.Values{}
+
+	if strings.TrimSpace(search) != "" {
+		values.Set("q", strings.TrimSpace(search))
+	}
+
+	if strings.TrimSpace(filter) != "" {
+		values.Set("filter", strings.TrimSpace(filter))
+	}
+
+	values.Set("page", strconv.Itoa(page))
+	values.Set("per_page", strconv.Itoa(perPage))
+
+	return "/admin/notes?" + values.Encode()
+}
+
+func normalizeNoteFilter(value string) academic.NoteListFilter {
+	switch academic.NoteListFilter(strings.TrimSpace(value)) {
+	case academic.NoteListFilterAll:
+		return academic.NoteListFilterAll
+	case academic.NoteListFilterArchived:
+		return academic.NoteListFilterArchived
+	default:
+		return academic.NoteListFilterActive
+	}
 }
