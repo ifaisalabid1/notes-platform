@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/justinas/nosurf"
@@ -14,6 +15,7 @@ import (
 type Renderer struct {
 	templates      map[string]*template.Template
 	sessionManager *scs.SessionManager
+	baseURL        string
 }
 
 type TemplateData struct {
@@ -28,10 +30,11 @@ type TemplateData struct {
 	Data            any
 }
 
-func NewRenderer(sessionManager *scs.SessionManager, templateFS fs.FS) (*Renderer, error) {
+func NewRenderer(sessionManager *scs.SessionManager, templateFS fs.FS, baseURL string) (*Renderer, error) {
 	renderer := &Renderer{
 		templates:      make(map[string]*template.Template),
 		sessionManager: sessionManager,
+		baseURL:        strings.TrimRight(baseURL, "/"),
 	}
 
 	pages, err := fs.Glob(templateFS, "templates/pages/*.tmpl")
@@ -118,16 +121,8 @@ func (r *Renderer) prepareTemplateData(req *http.Request, data TemplateData) Tem
 		data.OGType = "website"
 	}
 
-	if data.CanonicalURL == "" {
-		scheme := "https"
-		if req.TLS == nil {
-			scheme = "http"
-		}
-
-		host := req.Host
-		if host != "" {
-			data.CanonicalURL = scheme + "://" + host + req.URL.Path
-		}
+	if data.CanonicalURL == "" && r.baseURL != "" {
+		data.CanonicalURL = r.baseURL + req.URL.Path
 	}
 
 	data.CSRFToken = nosurf.Token(req)

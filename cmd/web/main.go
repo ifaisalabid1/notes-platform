@@ -81,7 +81,7 @@ func main() {
 	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
 	sessionManager.Cookie.Secure = cfg.IsProduction()
 
-	renderer, err := views.NewRenderer(sessionManager, webassets.FS)
+	renderer, err := views.NewRenderer(sessionManager, webassets.FS, cfg.AppBaseURL)
 	if err != nil {
 		slog.Error("failed to create template renderer", "error", err)
 		os.Exit(1)
