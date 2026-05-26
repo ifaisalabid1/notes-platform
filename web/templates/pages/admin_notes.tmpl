@@ -314,6 +314,23 @@
                             Restore
                           </button>
                         </form>
+
+                        <form
+                          method="post"
+                          action="/admin/notes/{{ .Note.ID }}/delete"
+                        >
+                          <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="{{ $.CSRFToken }}"
+                          />
+                          <button
+                            type="submit"
+                            class="text-sm font-medium text-red-600 hover:text-red-700"
+                          >
+                            Delete permanently
+                          </button>
+                        </form>
                       {{ else }}
                         <form
                           method="post"

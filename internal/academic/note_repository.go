@@ -705,3 +705,68 @@ func (r *NoteRepository) ListPaginated(ctx context.Context, params ListNotesPara
 		TotalCount: totalCount,
 	}, nil
 }
+
+func (r *NoteRepository) DeleteArchived(ctx context.Context, id uuid.UUID) (Note, error) {
+	if id == uuid.Nil {
+		return Note{}, ErrNoteNotFound
+	}
+
+	var deleted Note
+
+	err := r.pool.QueryRow(ctx, `
+		DELETE FROM notes
+		WHERE id = $1
+		AND archived_at IS NOT NULL
+		RETURNING
+			id,
+			chapter_id,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			download_count,
+			view_count,
+			sort_order,
+			is_published,
+			uploaded_by,
+			archived_at,
+			created_at,
+			updated_at
+	`, id).Scan(
+		&deleted.ID,
+		&deleted.ChapterID,
+		&deleted.Title,
+		&deleted.Slug,
+		&deleted.Description,
+		&deleted.OriginalFileName,
+		&deleted.StoredFileName,
+		&deleted.StorageKey,
+		&deleted.ContentType,
+		&deleted.FileSizeBytes,
+		&deleted.IsPDF,
+		&deleted.IsWatermarked,
+		&deleted.DownloadCount,
+		&deleted.ViewCount,
+		&deleted.SortOrder,
+		&deleted.IsPublished,
+		&deleted.UploadedBy,
+		&deleted.ArchivedAt,
+		&deleted.CreatedAt,
+		&deleted.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Note{}, ErrNoteNotFound
+		}
+
+		return Note{}, fmt.Errorf("delete archived note: %w", err)
+	}
+
+	return deleted, nil
+}

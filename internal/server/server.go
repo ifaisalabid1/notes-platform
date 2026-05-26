@@ -213,6 +213,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		r.Post("/admin/notes/{noteID}/edit", adminNoteHandler.Update)
 		r.Post("/admin/notes/{noteID}/archive", adminNoteHandler.Archive)
 		r.Post("/admin/notes/{noteID}/unarchive", adminNoteHandler.Unarchive)
+		r.Post("/admin/notes/{noteID}/delete", adminNoteHandler.DeleteArchived)
 
 		r.Get("/admin/htmx/semesters", adminHTMXHandler.SemestersByClass)
 		r.Get("/admin/htmx/subjects", adminHTMXHandler.SubjectsBySemester)

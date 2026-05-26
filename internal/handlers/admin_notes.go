@@ -591,3 +591,48 @@ func normalizeNoteFilter(value string) academic.NoteListFilter {
 		return academic.NoteListFilterActive
 	}
 }
+
+func (h *AdminNoteHandler) DeleteArchived(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	deletedNote, err := h.noteRepo.DeleteArchived(r.Context(), noteID)
+	if err != nil {
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			h.sessionManager.Put(r.Context(), "flash", "Only archived notes can be permanently deleted.")
+			http.Redirect(w, r, "/admin/notes?filter=archived", http.StatusSeeOther)
+			return
+		}
+
+		slog.Error("failed to permanently delete archived note", "error", err)
+		http.Error(w, "Failed to delete note", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.r2.DeleteObject(r.Context(), deletedNote.StorageKey); err != nil {
+		slog.Error(
+			"failed to delete r2 object after deleting note metadata",
+			"note_id", deletedNote.ID.String(),
+			"storage_key", deletedNote.StorageKey,
+			"error", err,
+		)
+
+		h.sessionManager.Put(
+			r.Context(),
+			"flash",
+			"Note deleted from database, but file cleanup failed. Check logs and R2 manually.",
+		)
+	} else {
+		h.sessionManager.Put(r.Context(), "flash", "Archived note permanently deleted.")
+	}
+
+	redirectURL := r.Header.Get("Referer")
+	if redirectURL == "" {
+		redirectURL = "/admin/notes?filter=archived"
+	}
+
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+}
