@@ -34,7 +34,8 @@ func NewPublicHandler(
 }
 
 type PublicClassesPageData struct {
-	Classes []academic.Class
+	Classes     []academic.Class
+	LatestNotes []PublicLatestNoteItem
 }
 
 type PublicSemestersPageData struct {
@@ -77,6 +78,11 @@ type PublicNotesPageData struct {
 	Notes    []PublicNoteItem
 }
 
+type PublicLatestNoteItem struct {
+	Note    academic.Note
+	FileURL string
+}
+
 type PublicSearchItem struct {
 	Note    academic.Note
 	FileURL string
@@ -107,11 +113,35 @@ func (h *PublicHandler) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	latestNotes, err := h.publicRepo.LatestPublishedNotes(r.Context(), 6)
+	if err != nil {
+		slog.Error("failed to load latest public notes", "error", err)
+		http.Error(w, "Failed to load latest notes", http.StatusInternalServerError)
+		return
+	}
+
+	latestNoteItems := make([]PublicLatestNoteItem, 0, len(latestNotes))
+
+	for _, note := range latestNotes {
+		fileURL, err := h.fileProxySigner.SignedFileURL(note.StorageKey)
+		if err != nil {
+			slog.Error("failed to sign latest note url", "error", err)
+			http.Error(w, "Failed to load latest note links", http.StatusInternalServerError)
+			return
+		}
+
+		latestNoteItems = append(latestNoteItems, PublicLatestNoteItem{
+			Note:    note,
+			FileURL: fileURL,
+		})
+	}
+
 	h.renderer.Render(w, r, "public_classes.tmpl", views.TemplateData{
 		Title:       "Browse Classes",
-		Description: "Browse class notes, semesters, subjects, units, chapters, and study materials.",
+		Description: "Browse class notes, semesters, subjects, units, chapters, and recently published study materials.",
 		Data: PublicClassesPageData{
-			Classes: classes,
+			Classes:     classes,
+			LatestNotes: latestNoteItems,
 		},
 	})
 }

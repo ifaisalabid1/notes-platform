@@ -986,3 +986,106 @@ func (r *PublicRepository) SearchPublishedNotes(ctx context.Context, params Publ
 		TotalCount: totalCount,
 	}, nil
 }
+
+func (r *PublicRepository) LatestPublishedNotes(ctx context.Context, limit int) ([]Note, error) {
+	if limit <= 0 {
+		limit = 6
+	}
+
+	if limit > 12 {
+		limit = 12
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			n.id,
+			n.chapter_id,
+			ch.name AS chapter_name,
+			u.name AS unit_name,
+			sub.name AS subject_name,
+			sem.name AS semester_name,
+			c.name AS class_name,
+			n.title,
+			n.slug,
+			n.description,
+			n.original_file_name,
+			n.stored_file_name,
+			n.storage_key,
+			n.content_type,
+			n.file_size_bytes,
+			n.is_pdf,
+			n.is_watermarked,
+			n.download_count,
+			n.view_count,
+			n.sort_order,
+			n.is_published,
+			n.uploaded_by,
+			n.archived_at,
+			n.created_at,
+			n.updated_at
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+		WHERE c.is_published = TRUE
+		AND sem.is_published = TRUE
+		AND sub.is_published = TRUE
+		AND u.is_published = TRUE
+		AND ch.is_published = TRUE
+		AND n.is_published = TRUE
+		AND n.archived_at IS NULL
+		ORDER BY n.created_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list latest published notes: %w", err)
+	}
+	defer rows.Close()
+
+	notes := make([]Note, 0)
+
+	for rows.Next() {
+		var item Note
+
+		err := rows.Scan(
+			&item.ID,
+			&item.ChapterID,
+			&item.ChapterName,
+			&item.UnitName,
+			&item.SubjectName,
+			&item.SemesterName,
+			&item.ClassName,
+			&item.Title,
+			&item.Slug,
+			&item.Description,
+			&item.OriginalFileName,
+			&item.StoredFileName,
+			&item.StorageKey,
+			&item.ContentType,
+			&item.FileSizeBytes,
+			&item.IsPDF,
+			&item.IsWatermarked,
+			&item.DownloadCount,
+			&item.ViewCount,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.UploadedBy,
+			&item.ArchivedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan latest published note: %w", err)
+		}
+
+		notes = append(notes, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate latest published notes: %w", err)
+	}
+
+	return notes, nil
+}
