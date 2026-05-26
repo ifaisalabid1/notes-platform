@@ -12,6 +12,18 @@ import (
 	"github.com/justinas/nosurf"
 )
 
+func templateFunctions() template.FuncMap {
+	return template.FuncMap{
+		"isActivePath": func(currentPath string, targetPath string) bool {
+			if targetPath == "/" {
+				return currentPath == "/"
+			}
+
+			return currentPath == targetPath || strings.HasPrefix(currentPath, targetPath+"/")
+		},
+	}
+}
+
 type Renderer struct {
 	templates      map[string]*template.Template
 	sessionManager *scs.SessionManager
@@ -23,6 +35,7 @@ type TemplateData struct {
 	Description     string
 	CanonicalURL    string
 	OGType          string
+	CurrentPath     string
 	CSRFToken       string
 	IsAuthenticated bool
 	Flash           string
@@ -45,11 +58,13 @@ func NewRenderer(sessionManager *scs.SessionManager, templateFS fs.FS, baseURL s
 	for _, page := range pages {
 		name := path.Base(page)
 
-		tmpl, err := template.ParseFS(
-			templateFS,
-			"templates/layouts/base.tmpl",
-			page,
-		)
+		tmpl, err := template.New(path.Base(page)).
+			Funcs(templateFunctions()).
+			ParseFS(
+				templateFS,
+				"templates/layouts/base.tmpl",
+				page,
+			)
 		if err != nil {
 			return nil, fmt.Errorf("parse page template %s: %w", name, err)
 		}
@@ -65,7 +80,9 @@ func NewRenderer(sessionManager *scs.SessionManager, templateFS fs.FS, baseURL s
 	for _, partial := range partials {
 		name := path.Base(partial)
 
-		tmpl, err := template.ParseFS(templateFS, partial)
+		tmpl, err := template.New(path.Base(partial)).
+			Funcs(templateFunctions()).
+			ParseFS(templateFS, partial)
 		if err != nil {
 			return nil, fmt.Errorf("parse partial template %s: %w", name, err)
 		}
@@ -125,6 +142,7 @@ func (r *Renderer) prepareTemplateData(req *http.Request, data TemplateData) Tem
 		data.CanonicalURL = r.baseURL + req.URL.Path
 	}
 
+	data.CurrentPath = req.URL.Path
 	data.CSRFToken = nosurf.Token(req)
 	data.IsAuthenticated = r.sessionManager.Exists(req.Context(), "admin_id")
 	data.Flash = r.sessionManager.PopString(req.Context(), "flash")
