@@ -12,6 +12,7 @@ import (
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
 	"github.com/ifaisalabid1/notes-platform/internal/database"
 	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
@@ -63,8 +64,14 @@ func NewRouter(deps Dependencies) http.Handler {
 	unitRepo := academic.NewUnitRepository(deps.DB.Pool)
 	chapterRepo := academic.NewChapterRepository(deps.DB.Pool)
 	noteRepo := academic.NewNoteRepository(deps.DB.Pool)
+	auditRepo := audit.NewRepository(deps.DB.Pool)
 
 	publicRepo := academic.NewPublicRepository(deps.DB.Pool)
+
+	adminAuditHandler := handlers.NewAdminAuditHandler(
+		auditRepo,
+		deps.Renderer,
+	)
 
 	adminAuthHandler := handlers.NewAdminAuthHandler(
 		adminRepo,
@@ -117,6 +124,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		classRepo,
 		chapterRepo,
 		noteRepo,
+		auditRepo,
 		deps.R2,
 		deps.PDFWatermarker,
 		deps.FileProxySigner,
@@ -176,6 +184,8 @@ func NewRouter(deps Dependencies) http.Handler {
 
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.RequireAdmin)
+
+		r.Get("/admin/audit", adminAuditHandler.Index)
 
 		r.Get("/admin/dashboard", adminAuthHandler.Dashboard)
 		r.Post("/admin/logout", adminAuthHandler.Logout)

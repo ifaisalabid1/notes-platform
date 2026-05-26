@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
 	"github.com/ifaisalabid1/notes-platform/internal/storage"
 	"github.com/ifaisalabid1/notes-platform/internal/uploads"
@@ -27,6 +28,7 @@ type AdminNoteHandler struct {
 	classRepo       *academic.ClassRepository
 	chapterRepo     *academic.ChapterRepository
 	noteRepo        *academic.NoteRepository
+	auditRepo       *audit.Repository
 	r2              *storage.R2Client
 	pdfWatermarker  *watermark.PDFWatermarker
 	fileProxySigner *fileproxy.Signer
@@ -38,6 +40,7 @@ func NewAdminNoteHandler(
 	classRepo *academic.ClassRepository,
 	chapterRepo *academic.ChapterRepository,
 	noteRepo *academic.NoteRepository,
+	auditRepo *audit.Repository,
 	r2 *storage.R2Client,
 	pdfWatermarker *watermark.PDFWatermarker,
 	fileProxySigner *fileproxy.Signer,
@@ -48,6 +51,7 @@ func NewAdminNoteHandler(
 		classRepo:       classRepo,
 		chapterRepo:     chapterRepo,
 		noteRepo:        noteRepo,
+		auditRepo:       auditRepo,
 		r2:              r2,
 		pdfWatermarker:  pdfWatermarker,
 		fileProxySigner: fileProxySigner,
@@ -201,7 +205,7 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.noteRepo.Create(r.Context(), academic.CreateNoteParams{
+	createdNote, err := h.noteRepo.Create(r.Context(), academic.CreateNoteParams{
 		ChapterID:        chapterID,
 		Title:            title,
 		Description:      description,
@@ -234,6 +238,25 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 		h.renderIndexWithError(w, r, "Failed to save note metadata. Uploaded file was cleaned up.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"note_uploaded",
+		"note",
+		&createdNote.ID,
+		"Uploaded note file",
+		map[string]any{
+			"title":              createdNote.Title,
+			"original_file_name": createdNote.OriginalFileName,
+			"storage_key":        createdNote.StorageKey,
+			"content_type":       createdNote.ContentType,
+			"file_size_bytes":    createdNote.FileSizeBytes,
+			"is_watermarked":     createdNote.IsWatermarked,
+			"is_published":       createdNote.IsPublished,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
 }
@@ -437,7 +460,7 @@ func (h *AdminNoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.noteRepo.UpdateMetadata(r.Context(), academic.UpdateNoteMetadataParams{
+	updatedNote, err := h.noteRepo.UpdateMetadata(r.Context(), academic.UpdateNoteMetadataParams{
 		ID:          noteID,
 		ChapterID:   chapterID,
 		Title:       title,
@@ -460,6 +483,22 @@ func (h *AdminNoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.renderEditWithError(w, r, noteID, "Failed to update note.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"note_updated",
+		"note",
+		&updatedNote.ID,
+		"Updated note metadata",
+		map[string]any{
+			"title":        updatedNote.Title,
+			"chapter_id":   updatedNote.ChapterID.String(),
+			"is_published": updatedNote.IsPublished,
+			"sort_order":   updatedNote.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
 }
@@ -522,6 +561,17 @@ func (h *AdminNoteHandler) Archive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"note_archived",
+		"note",
+		&noteID,
+		"Archived note",
+		map[string]any{},
+	)
+
 	h.sessionManager.Put(r.Context(), "flash", "Note archived successfully.")
 
 	redirectURL := r.Header.Get("Referer")
@@ -549,6 +599,17 @@ func (h *AdminNoteHandler) Unarchive(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to unarchive note", http.StatusInternalServerError)
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"note_restored",
+		"note",
+		&noteID,
+		"Restored archived note",
+		map[string]any{},
+	)
 
 	h.sessionManager.Put(r.Context(), "flash", "Note restored successfully.")
 
@@ -675,6 +736,21 @@ func (h *AdminNoteHandler) DeleteArchived(w http.ResponseWriter, r *http.Request
 		h.sessionManager.Put(r.Context(), "flash", "Archived note permanently deleted.")
 	}
 
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"note_deleted",
+		"note",
+		&deletedNote.ID,
+		"Permanently deleted archived note",
+		map[string]any{
+			"title":              deletedNote.Title,
+			"original_file_name": deletedNote.OriginalFileName,
+			"storage_key":        deletedNote.StorageKey,
+		},
+	)
+
 	http.Redirect(w, r, "/admin/notes?filter=archived", http.StatusSeeOther)
 }
 
@@ -764,7 +840,7 @@ func (h *AdminNoteHandler) ReplaceFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.noteRepo.UpdateFile(r.Context(), academic.UpdateNoteFileParams{
+	updatedNote, err := h.noteRepo.UpdateFile(r.Context(), academic.UpdateNoteFileParams{
 		ID:               noteID,
 		OriginalFileName: validatedFile.OriginalFileName,
 		StoredFileName:   storedFileName,
@@ -813,6 +889,25 @@ func (h *AdminNoteHandler) ReplaceFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.sessionManager.Put(r.Context(), "flash", "Note file replaced successfully.")
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"note_file_replaced",
+		"note",
+		&updatedNote.ID,
+		"Replaced note file",
+		map[string]any{
+			"title":              updatedNote.Title,
+			"old_storage_key":    existingNote.StorageKey,
+			"new_storage_key":    updatedNote.StorageKey,
+			"original_file_name": updatedNote.OriginalFileName,
+			"content_type":       updatedNote.ContentType,
+			"file_size_bytes":    updatedNote.FileSizeBytes,
+			"is_watermarked":     updatedNote.IsWatermarked,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/notes/"+noteID.String()+"/edit", http.StatusSeeOther)
 }

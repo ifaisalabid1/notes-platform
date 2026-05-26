@@ -1,0 +1,64 @@
+{{ define "content" }}
+  <section class="space-y-8">
+    <div>
+      <span class="badge">Security</span>
+      <h1 class="page-title mt-4">Audit Log</h1>
+      <p class="page-subtitle">Recent admin actions across the platform.</p>
+    </div>
+
+    <section class="space-y-4">
+      <div>
+        <h2 class="section-title">Recent Activity</h2>
+        <p class="mt-1 text-sm text-academic-500">
+          Showing latest {{ len .Data.Logs }} of {{ .Data.TotalCount }} events.
+        </p>
+      </div>
+
+      {{ with .Data.Logs }}
+        <div class="table-wrap overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>Message</th>
+                <th>IP</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {{ range . }}
+                <tr>
+                  <td>{{ .CreatedAt.Format "2006-01-02 15:04:05" }}</td>
+                  <td class="font-medium text-academic-900">{{ .Action }}</td>
+                  <td>
+                    {{ .EntityType }}
+                    {{ if .EntityID }}
+                      <span class="text-xs text-academic-500"
+                        >{{ .EntityID }}</span
+                      >
+                    {{ end }}
+                  </td>
+                  <td>{{ .Message }}</td>
+                  <td>
+                    {{ if .IPAddress }}{{ .IPAddress }}{{ else }}—{{ end }}
+                  </td>
+                </tr>
+              {{ end }}
+            </tbody>
+          </table>
+        </div>
+      {{ else }}
+        <div class="empty-state">
+          <h3 class="empty-state-title">No audit logs yet</h3>
+          <p class="empty-state-text">
+            Admin actions will appear here once content is created or updated.
+          </p>
+        </div>
+      {{ end }}
+    </section>
+
+    <a href="/admin/dashboard" class="btn-secondary">Back to dashboard</a>
+  </section>
+{{ end }}
