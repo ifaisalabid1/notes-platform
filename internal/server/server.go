@@ -76,47 +76,60 @@ func NewRouter(deps Dependencies) http.Handler {
 	adminAuthHandler := handlers.NewAdminAuthHandler(
 		adminRepo,
 		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 
 	adminAccountHandler := handlers.NewAdminAccountHandler(
 		adminRepo,
 		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 
 	adminManagementHandler := handlers.NewAdminManagementHandler(
 		adminRepo,
 		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 
 	adminClassHandler := handlers.NewAdminClassHandler(
 		classRepo,
+		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 
 	adminSemesterHandler := handlers.NewAdminSemesterHandler(
 		classRepo,
 		semesterRepo,
+		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 
 	adminSubjectHandler := handlers.NewAdminSubjectHandler(
 		semesterRepo,
 		subjectRepo,
+		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 
 	adminUnitHandler := handlers.NewAdminUnitHandler(
 		subjectRepo,
 		unitRepo,
+		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 
 	adminChapterHandler := handlers.NewAdminChapterHandler(
 		unitRepo,
 		chapterRepo,
+		deps.SessionManager,
+		auditRepo,
 		deps.Renderer,
 	)
 

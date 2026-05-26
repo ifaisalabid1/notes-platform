@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
@@ -16,17 +17,20 @@ import (
 type AdminManagementHandler struct {
 	adminRepo      *admin.Repository
 	sessionManager *scs.SessionManager
+	auditRepo      *audit.Repository
 	renderer       *views.Renderer
 }
 
 func NewAdminManagementHandler(
 	adminRepo *admin.Repository,
 	sessionManager *scs.SessionManager,
+	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminManagementHandler {
 	return &AdminManagementHandler{
 		adminRepo:      adminRepo,
 		sessionManager: sessionManager,
+		auditRepo:      auditRepo,
 		renderer:       renderer,
 	}
 }
@@ -81,7 +85,7 @@ func (h *AdminManagementHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.adminRepo.CreateAdmin(r.Context(), admin.CreateAdminParams{
+	createdAdmin, err := h.adminRepo.CreateAdmin(r.Context(), admin.CreateAdminParams{
 		Name:         name,
 		Email:        email,
 		PasswordHash: passwordHash,
@@ -99,6 +103,22 @@ func (h *AdminManagementHandler) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.sessionManager.Put(r.Context(), "flash", "Admin created successfully.")
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"admin_created",
+		"admin",
+		&createdAdmin.ID,
+		"Created admin user",
+		map[string]any{
+			"name":     createdAdmin.Name,
+			"email":    createdAdmin.Email,
+			"role":     createdAdmin.Role,
+			"is_owner": createdAdmin.IsOwner,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 }

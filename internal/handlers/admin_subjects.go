@@ -7,28 +7,36 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type AdminSubjectHandler struct {
-	semesterRepo *academic.SemesterRepository
-	subjectRepo  *academic.SubjectRepository
-	renderer     *views.Renderer
+	semesterRepo   *academic.SemesterRepository
+	subjectRepo    *academic.SubjectRepository
+	sessionManager *scs.SessionManager
+	auditRepo      *audit.Repository
+	renderer       *views.Renderer
 }
 
 func NewAdminSubjectHandler(
 	semesterRepo *academic.SemesterRepository,
 	subjectRepo *academic.SubjectRepository,
+	sessionManager *scs.SessionManager,
+	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminSubjectHandler {
 	return &AdminSubjectHandler{
-		semesterRepo: semesterRepo,
-		subjectRepo:  subjectRepo,
-		renderer:     renderer,
+		semesterRepo:   semesterRepo,
+		subjectRepo:    subjectRepo,
+		sessionManager: sessionManager,
+		auditRepo:      auditRepo,
+		renderer:       renderer,
 	}
 }
 
@@ -90,7 +98,7 @@ func (h *AdminSubjectHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.subjectRepo.Create(r.Context(), academic.CreateSubjectParams{
+	createdSubject, err := h.subjectRepo.Create(r.Context(), academic.CreateSubjectParams{
 		SemesterID:  semesterID,
 		Name:        name,
 		Description: description,
@@ -107,6 +115,23 @@ func (h *AdminSubjectHandler) Store(w http.ResponseWriter, r *http.Request) {
 		h.renderIndexWithError(w, r, "Failed to create subject.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"subject_created",
+		"subject",
+		&createdSubject.ID,
+		"Created subject",
+		map[string]any{
+			"name":         createdSubject.Name,
+			"slug":         createdSubject.Slug,
+			"semester_id":  createdSubject.SemesterID.String(),
+			"is_published": createdSubject.IsPublished,
+			"sort_order":   createdSubject.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/subjects", http.StatusSeeOther)
 }
@@ -210,7 +235,7 @@ func (h *AdminSubjectHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.subjectRepo.Update(r.Context(), academic.UpdateSubjectParams{
+	updatedSubject, err := h.subjectRepo.Update(r.Context(), academic.UpdateSubjectParams{
 		ID:          subjectID,
 		SemesterID:  semesterID,
 		Name:        name,
@@ -233,6 +258,23 @@ func (h *AdminSubjectHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.renderEditWithError(w, r, subjectID, "Failed to update subject.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"subject_updated",
+		"subject",
+		&updatedSubject.ID,
+		"Updated subject",
+		map[string]any{
+			"name":         updatedSubject.Name,
+			"slug":         updatedSubject.Slug,
+			"semester_id":  updatedSubject.SemesterID.String(),
+			"is_published": updatedSubject.IsPublished,
+			"sort_order":   updatedSubject.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/subjects", http.StatusSeeOther)
 }

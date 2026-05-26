@@ -7,28 +7,36 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type AdminSemesterHandler struct {
-	classRepo    *academic.ClassRepository
-	semesterRepo *academic.SemesterRepository
-	renderer     *views.Renderer
+	classRepo      *academic.ClassRepository
+	semesterRepo   *academic.SemesterRepository
+	sessionManager *scs.SessionManager
+	auditRepo      *audit.Repository
+	renderer       *views.Renderer
 }
 
 func NewAdminSemesterHandler(
 	classRepo *academic.ClassRepository,
 	semesterRepo *academic.SemesterRepository,
+	sessionManager *scs.SessionManager,
+	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminSemesterHandler {
 	return &AdminSemesterHandler{
-		classRepo:    classRepo,
-		semesterRepo: semesterRepo,
-		renderer:     renderer,
+		classRepo:      classRepo,
+		semesterRepo:   semesterRepo,
+		sessionManager: sessionManager,
+		auditRepo:      auditRepo,
+		renderer:       renderer,
 	}
 }
 
@@ -90,7 +98,7 @@ func (h *AdminSemesterHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.semesterRepo.Create(r.Context(), academic.CreateSemesterParams{
+	createdSemester, err := h.semesterRepo.Create(r.Context(), academic.CreateSemesterParams{
 		ClassID:     classID,
 		Name:        name,
 		Description: description,
@@ -107,6 +115,23 @@ func (h *AdminSemesterHandler) Store(w http.ResponseWriter, r *http.Request) {
 		h.renderIndexWithError(w, r, "Failed to create semester.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"semester_created",
+		"semester",
+		&createdSemester.ID,
+		"Created semester",
+		map[string]any{
+			"name":         createdSemester.Name,
+			"slug":         createdSemester.Slug,
+			"class_id":     createdSemester.ClassID.String(),
+			"is_published": createdSemester.IsPublished,
+			"sort_order":   createdSemester.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/semesters", http.StatusSeeOther)
 }
@@ -210,7 +235,7 @@ func (h *AdminSemesterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.semesterRepo.Update(r.Context(), academic.UpdateSemesterParams{
+	updatedSemester, err := h.semesterRepo.Update(r.Context(), academic.UpdateSemesterParams{
 		ID:          semesterID,
 		ClassID:     classID,
 		Name:        name,
@@ -233,6 +258,23 @@ func (h *AdminSemesterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.renderEditWithError(w, r, semesterID, "Failed to update semester.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"semester_updated",
+		"semester",
+		&updatedSemester.ID,
+		"Updated semester",
+		map[string]any{
+			"name":         updatedSemester.Name,
+			"slug":         updatedSemester.Slug,
+			"class_id":     updatedSemester.ClassID.String(),
+			"is_published": updatedSemester.IsPublished,
+			"sort_order":   updatedSemester.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/semesters", http.StatusSeeOther)
 }

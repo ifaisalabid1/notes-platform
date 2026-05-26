@@ -7,24 +7,32 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type AdminClassHandler struct {
-	classRepo *academic.ClassRepository
-	renderer  *views.Renderer
+	classRepo      *academic.ClassRepository
+	sessionManager *scs.SessionManager
+	auditRepo      *audit.Repository
+	renderer       *views.Renderer
 }
 
 func NewAdminClassHandler(
 	classRepo *academic.ClassRepository,
+	sessionManager *scs.SessionManager,
+	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminClassHandler {
 	return &AdminClassHandler{
-		classRepo: classRepo,
-		renderer:  renderer,
+		classRepo:      classRepo,
+		sessionManager: sessionManager,
+		auditRepo:      auditRepo,
+		renderer:       renderer,
 	}
 }
 
@@ -79,7 +87,7 @@ func (h *AdminClassHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.classRepo.Create(r.Context(), academic.CreateClassParams{
+	createdClass, err := h.classRepo.Create(r.Context(), academic.CreateClassParams{
 		Name:        name,
 		Description: description,
 		SortOrder:   sortOrder,
@@ -95,6 +103,22 @@ func (h *AdminClassHandler) Store(w http.ResponseWriter, r *http.Request) {
 		h.renderIndexWithError(w, r, "Failed to create class.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"class_created",
+		"class",
+		&createdClass.ID,
+		"Created class",
+		map[string]any{
+			"name":         createdClass.Name,
+			"slug":         createdClass.Slug,
+			"is_published": createdClass.IsPublished,
+			"sort_order":   createdClass.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/classes", http.StatusSeeOther)
 }
@@ -178,7 +202,7 @@ func (h *AdminClassHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.classRepo.Update(r.Context(), academic.UpdateClassParams{
+	updatedClass, err := h.classRepo.Update(r.Context(), academic.UpdateClassParams{
 		ID:          classID,
 		Name:        name,
 		Description: description,
@@ -200,6 +224,22 @@ func (h *AdminClassHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.renderEditWithError(w, r, classID, "Failed to update class.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"class_updated",
+		"class",
+		&updatedClass.ID,
+		"Updated class",
+		map[string]any{
+			"name":         updatedClass.Name,
+			"slug":         updatedClass.Slug,
+			"is_published": updatedClass.IsPublished,
+			"sort_order":   updatedClass.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/classes", http.StatusSeeOther)
 }

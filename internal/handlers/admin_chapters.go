@@ -7,17 +7,21 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type AdminChapterHandler struct {
-	unitRepo    *academic.UnitRepository
-	chapterRepo *academic.ChapterRepository
-	renderer    *views.Renderer
+	unitRepo       *academic.UnitRepository
+	chapterRepo    *academic.ChapterRepository
+	sessionManager *scs.SessionManager
+	auditRepo      *audit.Repository
+	renderer       *views.Renderer
 }
 
 type AdminChapterEditPageData struct {
@@ -28,12 +32,16 @@ type AdminChapterEditPageData struct {
 func NewAdminChapterHandler(
 	unitRepo *academic.UnitRepository,
 	chapterRepo *academic.ChapterRepository,
+	sessionManager *scs.SessionManager,
+	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminChapterHandler {
 	return &AdminChapterHandler{
-		unitRepo:    unitRepo,
-		chapterRepo: chapterRepo,
-		renderer:    renderer,
+		unitRepo:       unitRepo,
+		chapterRepo:    chapterRepo,
+		sessionManager: sessionManager,
+		auditRepo:      auditRepo,
+		renderer:       renderer,
 	}
 }
 
@@ -90,7 +98,7 @@ func (h *AdminChapterHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.chapterRepo.Create(r.Context(), academic.CreateChapterParams{
+	createdChapter, err := h.chapterRepo.Create(r.Context(), academic.CreateChapterParams{
 		UnitID:      unitID,
 		Name:        name,
 		Description: description,
@@ -107,6 +115,23 @@ func (h *AdminChapterHandler) Store(w http.ResponseWriter, r *http.Request) {
 		h.renderIndexWithError(w, r, "Failed to create chapter.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"chapter_created",
+		"chapter",
+		&createdChapter.ID,
+		"Created chapter",
+		map[string]any{
+			"name":         createdChapter.Name,
+			"slug":         createdChapter.Slug,
+			"unit_id":      createdChapter.UnitID.String(),
+			"is_published": createdChapter.IsPublished,
+			"sort_order":   createdChapter.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/chapters", http.StatusSeeOther)
 }
@@ -210,7 +235,7 @@ func (h *AdminChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.chapterRepo.Update(r.Context(), academic.UpdateChapterParams{
+	updatedChapter, err := h.chapterRepo.Update(r.Context(), academic.UpdateChapterParams{
 		ID:          chapterID,
 		UnitID:      unitID,
 		Name:        name,
@@ -233,6 +258,23 @@ func (h *AdminChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.renderEditWithError(w, r, chapterID, "Failed to update chapter.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"chapter_updated",
+		"chapter",
+		&updatedChapter.ID,
+		"Updated chapter",
+		map[string]any{
+			"name":         updatedChapter.Name,
+			"slug":         updatedChapter.Slug,
+			"unit_id":      updatedChapter.UnitID.String(),
+			"is_published": updatedChapter.IsPublished,
+			"sort_order":   updatedChapter.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/chapters", http.StatusSeeOther)
 }

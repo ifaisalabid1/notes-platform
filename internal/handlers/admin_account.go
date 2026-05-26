@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/admin"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/auth"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
@@ -16,17 +17,20 @@ import (
 type AdminAccountHandler struct {
 	adminRepo      *admin.Repository
 	sessionManager *scs.SessionManager
+	auditRepo      *audit.Repository
 	renderer       *views.Renderer
 }
 
 func NewAdminAccountHandler(
 	adminRepo *admin.Repository,
 	sessionManager *scs.SessionManager,
+	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminAccountHandler {
 	return &AdminAccountHandler{
 		adminRepo:      adminRepo,
 		sessionManager: sessionManager,
+		auditRepo:      auditRepo,
 		renderer:       renderer,
 	}
 }

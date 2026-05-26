@@ -7,28 +7,36 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
+	"github.com/ifaisalabid1/notes-platform/internal/audit"
 	"github.com/ifaisalabid1/notes-platform/internal/views"
 )
 
 type AdminUnitHandler struct {
-	subjectRepo *academic.SubjectRepository
-	unitRepo    *academic.UnitRepository
-	renderer    *views.Renderer
+	subjectRepo    *academic.SubjectRepository
+	unitRepo       *academic.UnitRepository
+	sessionManager *scs.SessionManager
+	auditRepo      *audit.Repository
+	renderer       *views.Renderer
 }
 
 func NewAdminUnitHandler(
 	subjectRepo *academic.SubjectRepository,
 	unitRepo *academic.UnitRepository,
+	sessionManager *scs.SessionManager,
+	auditRepo *audit.Repository,
 	renderer *views.Renderer,
 ) *AdminUnitHandler {
 	return &AdminUnitHandler{
-		subjectRepo: subjectRepo,
-		unitRepo:    unitRepo,
-		renderer:    renderer,
+		subjectRepo:    subjectRepo,
+		unitRepo:       unitRepo,
+		sessionManager: sessionManager,
+		auditRepo:      auditRepo,
+		renderer:       renderer,
 	}
 }
 
@@ -90,7 +98,7 @@ func (h *AdminUnitHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.unitRepo.Create(r.Context(), academic.CreateUnitParams{
+	createdUnit, err := h.unitRepo.Create(r.Context(), academic.CreateUnitParams{
 		SubjectID:   subjectID,
 		Name:        name,
 		Description: description,
@@ -107,6 +115,23 @@ func (h *AdminUnitHandler) Store(w http.ResponseWriter, r *http.Request) {
 		h.renderIndexWithError(w, r, "Failed to create unit.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"unit_created",
+		"unit",
+		&createdUnit.ID,
+		"Created unit",
+		map[string]any{
+			"name":         createdUnit.Name,
+			"slug":         createdUnit.Slug,
+			"subject_id":   createdUnit.SubjectID.String(),
+			"is_published": createdUnit.IsPublished,
+			"sort_order":   createdUnit.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/units", http.StatusSeeOther)
 }
@@ -210,7 +235,7 @@ func (h *AdminUnitHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.unitRepo.Update(r.Context(), academic.UpdateUnitParams{
+	updatedUnit, err := h.unitRepo.Update(r.Context(), academic.UpdateUnitParams{
 		ID:          unitID,
 		SubjectID:   subjectID,
 		Name:        name,
@@ -233,6 +258,23 @@ func (h *AdminUnitHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.renderEditWithError(w, r, unitID, "Failed to update unit.")
 		return
 	}
+
+	writeAuditLog(
+		r,
+		h.sessionManager,
+		h.auditRepo,
+		"unit_updated",
+		"unit",
+		&updatedUnit.ID,
+		"Updated unit",
+		map[string]any{
+			"name":         updatedUnit.Name,
+			"slug":         updatedUnit.Slug,
+			"subject_id":   updatedUnit.SubjectID.String(),
+			"is_published": updatedUnit.IsPublished,
+			"sort_order":   updatedUnit.SortOrder,
+		},
+	)
 
 	http.Redirect(w, r, "/admin/units", http.StatusSeeOther)
 }
