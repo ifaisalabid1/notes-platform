@@ -86,6 +86,11 @@ type AdminNoteEditPageData struct {
 	FileURL  string
 }
 
+type AdminNoteDeletePageData struct {
+	Note    academic.Note
+	FileURL string
+}
+
 func (h *AdminNoteHandler) Index(w http.ResponseWriter, r *http.Request) {
 	pageData, err := h.pageData(r)
 	if err != nil {
@@ -592,6 +597,47 @@ func normalizeNoteFilter(value string) academic.NoteListFilter {
 	}
 }
 
+func (h *AdminNoteHandler) ConfirmDeleteArchived(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	noteItem, err := h.noteRepo.FindByID(r.Context(), noteID)
+	if err != nil {
+		if errors.Is(err, academic.ErrNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to find note for delete confirmation", "error", err)
+		http.Error(w, "Failed to load note", http.StatusInternalServerError)
+		return
+	}
+
+	if noteItem.ArchivedAt == nil {
+		h.sessionManager.Put(r.Context(), "flash", "Only archived notes can be permanently deleted.")
+		http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
+		return
+	}
+
+	fileURL, err := h.fileProxySigner.SignedFileURL(noteItem.StorageKey)
+	if err != nil {
+		slog.Error("failed to sign note file url for delete confirmation", "error", err)
+		http.Error(w, "Failed to load note", http.StatusInternalServerError)
+		return
+	}
+
+	h.renderer.Render(w, r, "admin_note_delete.tmpl", views.TemplateData{
+		Title: "Delete Note",
+		Data: AdminNoteDeletePageData{
+			Note:    noteItem,
+			FileURL: fileURL,
+		},
+	})
+}
+
 func (h *AdminNoteHandler) DeleteArchived(w http.ResponseWriter, r *http.Request) {
 	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
 	if err != nil {
@@ -629,10 +675,5 @@ func (h *AdminNoteHandler) DeleteArchived(w http.ResponseWriter, r *http.Request
 		h.sessionManager.Put(r.Context(), "flash", "Archived note permanently deleted.")
 	}
 
-	redirectURL := r.Header.Get("Referer")
-	if redirectURL == "" {
-		redirectURL = "/admin/notes?filter=archived"
-	}
-
-	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/notes?filter=archived", http.StatusSeeOther)
 }

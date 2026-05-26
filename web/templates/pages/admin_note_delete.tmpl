@@ -1,0 +1,98 @@
+{{ define "content" }}
+  <section class="mx-auto max-w-3xl space-y-8">
+    <div>
+      <span class="badge">Permanent Delete</span>
+      <h1 class="page-title mt-4">Delete archived note?</h1>
+      <p class="page-subtitle">
+        This action permanently deletes the note metadata and attempts to remove
+        the stored file from R2. This cannot be undone.
+      </p>
+    </div>
+
+    {{ if .Error }}
+      <div class="alert-error" role="alert">{{ .Error }}</div>
+    {{ end }}
+
+
+    <section class="card space-y-6">
+      <div
+        class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700"
+      >
+        You are about to permanently delete an archived note. Make sure you no
+        longer need this file.
+      </div>
+
+      <div>
+        <h2 class="text-xl font-semibold text-academic-900">
+          {{ .Data.Note.Title }}
+        </h2>
+
+        <p class="mt-2 text-sm leading-6 text-academic-600">
+          {{ .Data.Note.ClassName }} / {{ .Data.Note.SemesterName }} /
+          {{ .Data.Note.SubjectName }} / {{ .Data.Note.UnitName }} /
+          {{ .Data.Note.ChapterName }}
+        </p>
+      </div>
+
+      <dl
+        class="grid gap-3 rounded-xl bg-academic-50 p-4 text-sm sm:grid-cols-2"
+      >
+        <div>
+          <dt class="font-medium text-academic-500">Original file</dt>
+          <dd class="mt-1 text-academic-800">
+            {{ .Data.Note.OriginalFileName }}
+          </dd>
+        </div>
+
+        <div>
+          <dt class="font-medium text-academic-500">Content type</dt>
+          <dd class="mt-1 text-academic-800">{{ .Data.Note.ContentType }}</dd>
+        </div>
+
+        <div>
+          <dt class="font-medium text-academic-500">File size</dt>
+          <dd class="mt-1 text-academic-800">
+            {{ .Data.Note.FileSizeBytes }} bytes
+          </dd>
+        </div>
+
+        <div>
+          <dt class="font-medium text-academic-500">Storage key</dt>
+          <dd class="mt-1 break-all text-academic-800">
+            {{ .Data.Note.StorageKey }}
+          </dd>
+        </div>
+      </dl>
+
+      <div>
+        <a
+          href="{{ .Data.FileURL }}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-secondary"
+        >
+          View file before deleting
+        </a>
+      </div>
+
+      <form
+        method="post"
+        action="/admin/notes/{{ .Data.Note.ID }}/delete"
+        class="flex flex-wrap gap-3"
+      >
+        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}" />
+
+        <button
+          type="submit"
+          class="btn bg-red-600 text-white hover:bg-red-700 hover:text-white focus:ring-red-100"
+        >
+          Yes, delete permanently
+        </button>
+
+        <a href="/admin/notes?filter=archived" class="btn-secondary">
+          Cancel
+        </a>
+      </form>
+    </section>
+  </section>
+{{ end }}
