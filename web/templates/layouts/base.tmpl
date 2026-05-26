@@ -5,10 +5,34 @@
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{{ if .Title }}{{ .Title }} -{{ end }}Notes Platform</title>
-      <link rel="stylesheet" href="/static/css/app.css" />
+      <meta name="description" content="{{ .Description }}" />
+      {{ if .CanonicalURL }}
+        <link rel="canonical" href="{{ .CanonicalURL }}" />
+      {{ end }}
 
-      <script src="/static/vendor/htmx/htmx.min.js" defer></script>
+
+      <meta property="og:site_name" content="Notes Platform" />
+      <meta
+        property="og:title"
+        content="{{ if .Title }}{{ .Title }} -{{ end }}Notes Platform"
+      />
+      <meta property="og:description" content="{{ .Description }}" />
+      <meta property="og:type" content="{{ .OGType }}" />
+      {{ if .CanonicalURL }}
+        <meta property="og:url" content="{{ .CanonicalURL }}" />
+      {{ end }}
+
+
+      <meta name="twitter:card" content="summary" />
+      <meta
+        name="twitter:title"
+        content="{{ if .Title }}{{ .Title }} -{{ end }}Notes Platform"
+      />
+      <meta name="twitter:description" content="{{ .Description }}" />
+
+      <link rel="stylesheet" href="/static/css/app.css" />
     </head>
+
     <body>
       <div class="app-shell">
         <header class="border-b border-academic-200 bg-white">

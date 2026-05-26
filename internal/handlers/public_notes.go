@@ -108,7 +108,8 @@ func (h *PublicHandler) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.Render(w, r, "public_classes.tmpl", views.TemplateData{
-		Title: "Classes",
+		Title:       "Browse Classes",
+		Description: "Browse class notes, semesters, subjects, units, chapters, and study materials.",
 		Data: PublicClassesPageData{
 			Classes: classes,
 		},
@@ -126,7 +127,8 @@ func (h *PublicHandler) Semesters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.Render(w, r, "public_semesters.tmpl", views.TemplateData{
-		Title: classItem.Name,
+		Title:       classItem.Name,
+		Description: fmt.Sprintf("Browse semesters and notes for %s.", classItem.Name),
 		Data: PublicSemestersPageData{
 			Class:     classItem,
 			Semesters: semesters,
@@ -146,7 +148,8 @@ func (h *PublicHandler) Subjects(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.Render(w, r, "public_subjects.tmpl", views.TemplateData{
-		Title: semesterItem.Name,
+		Title:       semesterItem.Name,
+		Description: fmt.Sprintf("Browse subjects for %s in %s.", semesterItem.Name, classItem.Name),
 		Data: PublicSubjectsPageData{
 			Class:    classItem,
 			Semester: semesterItem,
@@ -168,7 +171,8 @@ func (h *PublicHandler) Units(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.Render(w, r, "public_units.tmpl", views.TemplateData{
-		Title: subjectItem.Name,
+		Title:       subjectItem.Name,
+		Description: fmt.Sprintf("Browse units and notes for %s.", subjectItem.Name),
 		Data: PublicUnitsPageData{
 			Class:    classItem,
 			Semester: semesterItem,
@@ -192,7 +196,8 @@ func (h *PublicHandler) Chapters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.Render(w, r, "public_chapters.tmpl", views.TemplateData{
-		Title: unitItem.Name,
+		Title:       unitItem.Name,
+		Description: fmt.Sprintf("Browse chapters and notes for %s.", unitItem.Name),
 		Data: PublicChaptersPageData{
 			Class:    classItem,
 			Semester: semesterItem,
@@ -245,7 +250,8 @@ func (h *PublicHandler) Notes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.Render(w, r, "public_notes.tmpl", views.TemplateData{
-		Title: fmt.Sprintf("%s Notes", chapterItem.Name),
+		Title:       fmt.Sprintf("%s Notes", chapterItem.Name),
+		Description: fmt.Sprintf("View notes for %s in %s.", chapterItem.Name, subjectItem.Name),
 		Data: PublicNotesPageData{
 			Class:    classItem,
 			Semester: semesterItem,
@@ -331,8 +337,17 @@ func (h *PublicHandler) Search(w http.ResponseWriter, r *http.Request) {
 		nextURL = buildPublicSearchURL(searchQuery, page+1, perPage)
 	}
 
+	title := "Search Notes"
+	description := "Search published classroom notes and study materials."
+
+	if searchQuery != "" {
+		title = fmt.Sprintf("Search results for %s", searchQuery)
+		description = fmt.Sprintf("Search results for %s in published classroom notes.", searchQuery)
+	}
+
 	h.renderer.Render(w, r, "public_search.tmpl", views.TemplateData{
-		Title: "Search Notes",
+		Title:       title,
+		Description: description,
 		Data: PublicSearchPageData{
 			Results: items,
 			Pagination: PublicSearchPagination{

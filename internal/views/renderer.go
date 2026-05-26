@@ -18,6 +18,9 @@ type Renderer struct {
 
 type TemplateData struct {
 	Title           string
+	Description     string
+	CanonicalURL    string
+	OGType          string
 	CSRFToken       string
 	IsAuthenticated bool
 	Flash           string
@@ -77,9 +80,7 @@ func (r *Renderer) Render(w http.ResponseWriter, req *http.Request, name string,
 		return
 	}
 
-	data.CSRFToken = nosurf.Token(req)
-	data.IsAuthenticated = r.sessionManager.Exists(req.Context(), "admin_id")
-	data.Flash = r.sessionManager.PopString(req.Context(), "flash")
+	data = r.prepareTemplateData(req, data)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -95,12 +96,43 @@ func (r *Renderer) RenderPartial(w http.ResponseWriter, req *http.Request, name 
 		return
 	}
 
-	data.CSRFToken = nosurf.Token(req)
-	data.IsAuthenticated = r.sessionManager.Exists(req.Context(), "admin_id")
+	data = r.prepareTemplateData(req, data)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	if err := tmpl.ExecuteTemplate(w, "content", data); err != nil {
 		http.Error(w, "render partial", http.StatusInternalServerError)
 	}
+}
+
+func (r *Renderer) prepareTemplateData(req *http.Request, data TemplateData) TemplateData {
+	if data.Title == "" {
+		data.Title = "Notes Platform"
+	}
+
+	if data.Description == "" {
+		data.Description = "Browse classroom notes, subjects, units, chapters, and study materials shared by your teacher."
+	}
+
+	if data.OGType == "" {
+		data.OGType = "website"
+	}
+
+	if data.CanonicalURL == "" {
+		scheme := "https"
+		if req.TLS == nil {
+			scheme = "http"
+		}
+
+		host := req.Host
+		if host != "" {
+			data.CanonicalURL = scheme + "://" + host + req.URL.Path
+		}
+	}
+
+	data.CSRFToken = nosurf.Token(req)
+	data.IsAuthenticated = r.sessionManager.Exists(req.Context(), "admin_id")
+	data.Flash = r.sessionManager.PopString(req.Context(), "flash")
+
+	return data
 }
