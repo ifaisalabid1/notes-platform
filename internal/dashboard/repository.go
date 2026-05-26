@@ -3,7 +3,9 @@ package dashboard
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -17,6 +19,21 @@ type Stats struct {
 	ArchivedNotes int
 	Admins        int
 	AuditEvents   int
+}
+
+type PopularNote struct {
+	ID               uuid.UUID
+	Title            string
+	OriginalFileName string
+	ClassName        string
+	SemesterName     string
+	SubjectName      string
+	UnitName         string
+	ChapterName      string
+	ViewCount        int
+	IsPublished      bool
+	ArchivedAt       *time.Time
+	CreatedAt        time.Time
 }
 
 type Repository struct {
@@ -59,4 +76,76 @@ func (r *Repository) Stats(ctx context.Context) (Stats, error) {
 	}
 
 	return stats, nil
+}
+
+func (r *Repository) PopularNotes(ctx context.Context, limit int) ([]PopularNote, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	if limit > 20 {
+		limit = 20
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			n.id,
+			n.title,
+			n.original_file_name,
+			c.name AS class_name,
+			sem.name AS semester_name,
+			sub.name AS subject_name,
+			u.name AS unit_name,
+			ch.name AS chapter_name,
+			n.view_count,
+			n.is_published,
+			n.archived_at,
+			n.created_at
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+		ORDER BY
+			n.view_count DESC,
+			n.created_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list popular notes: %w", err)
+	}
+	defer rows.Close()
+
+	notes := make([]PopularNote, 0)
+
+	for rows.Next() {
+		var note PopularNote
+
+		err := rows.Scan(
+			&note.ID,
+			&note.Title,
+			&note.OriginalFileName,
+			&note.ClassName,
+			&note.SemesterName,
+			&note.SubjectName,
+			&note.UnitName,
+			&note.ChapterName,
+			&note.ViewCount,
+			&note.IsPublished,
+			&note.ArchivedAt,
+			&note.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan popular note: %w", err)
+		}
+
+		notes = append(notes, note)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate popular notes: %w", err)
+	}
+
+	return notes, nil
 }

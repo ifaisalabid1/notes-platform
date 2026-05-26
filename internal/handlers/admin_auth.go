@@ -36,7 +36,8 @@ func NewAdminAuthHandler(
 }
 
 type AdminDashboardPageData struct {
-	Stats dashboard.Stats
+	Stats        dashboard.Stats
+	PopularNotes []dashboard.PopularNote
 }
 
 func (h *AdminAuthHandler) ShowLogin(w http.ResponseWriter, r *http.Request) {
@@ -120,10 +121,17 @@ func (h *AdminAuthHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	popularNotes, err := h.dashboardRepo.PopularNotes(r.Context(), 5)
+	if err != nil {
+		http.Error(w, "Failed to load dashboard", http.StatusInternalServerError)
+		return
+	}
+
 	h.renderer.Render(w, r, "admin_dashboard.tmpl", views.TemplateData{
 		Title: "Dashboard",
 		Data: AdminDashboardPageData{
-			Stats: stats,
+			Stats:        stats,
+			PopularNotes: popularNotes,
 		},
 	})
 }

@@ -87,6 +87,96 @@
       </div>
     </section>
 
+    <section class="space-y-4">
+      <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <h2 class="section-title">Popular Notes</h2>
+          <p class="mt-1 text-sm text-academic-500">
+            Most viewed notes by students.
+          </p>
+        </div>
+
+        <a href="/admin/notes" class="btn-secondary">Manage notes</a>
+      </div>
+
+      {{ with .Data.PopularNotes }}
+        <div
+          class="overflow-hidden rounded-2xl border border-academic-200 bg-white"
+        >
+          <ul class="divide-y divide-academic-200">
+            {{ range . }}
+              <li class="p-4">
+                <div
+                  class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h3
+                        class="truncate text-base font-semibold text-academic-900"
+                      >
+                        {{ .Title }}
+                      </h3>
+
+                      {{ if .ArchivedAt }}
+                        <span
+                          class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"
+                        >
+                          Archived
+                        </span>
+                      {{ else if .IsPublished }}
+                        <span
+                          class="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700"
+                        >
+                          Published
+                        </span>
+                      {{ else }}
+                        <span
+                          class="rounded-full bg-academic-100 px-2.5 py-1 text-xs font-medium text-academic-600"
+                        >
+                          Draft
+                        </span>
+                      {{ end }}
+                    </div>
+
+                    <p class="mt-1 text-xs leading-5 text-academic-500">
+                      {{ .ClassName }} / {{ .SemesterName }} /
+                      {{ .SubjectName }} / {{ .UnitName }} /
+                      {{ .ChapterName }}
+                    </p>
+
+                    <p class="mt-1 text-xs text-academic-500">
+                      {{ .OriginalFileName }}
+                    </p>
+                  </div>
+
+                  <div class="flex shrink-0 items-center gap-3">
+                    <div class="text-right">
+                      <p class="text-2xl font-bold text-brand-700">
+                        {{ .ViewCount }}
+                      </p>
+                      <p class="text-xs text-academic-500">views</p>
+                    </div>
+
+                    <a href="/admin/notes/{{ .ID }}/edit" class="btn-secondary">
+                      Edit
+                    </a>
+                  </div>
+                </div>
+              </li>
+            {{ end }}
+          </ul>
+        </div>
+      {{ else }}
+        <div class="empty-state">
+          <h3 class="empty-state-title">No note views yet</h3>
+          <p class="empty-state-text">
+            Popular notes will appear here after students start opening
+            published notes.
+          </p>
+        </div>
+      {{ end }}
+    </section>
+
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <a
         href="/admin/classes"
