@@ -39,6 +39,7 @@ func NewRouter(deps Dependencies) http.Handler {
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(requestLogger)
 	r.Use(middleware.Recoverer)
 	r.Use(securityHeaders)
 	r.Use(middleware.Timeout(60 * time.Second))
