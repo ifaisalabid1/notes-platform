@@ -35,6 +35,7 @@
               hx-target="#semester_id"
               hx-trigger="change"
               hx-include="#class_id"
+              hx-indicator="#semester_loading"
               required
             >
               <option value="">Select class</option>
@@ -53,10 +54,15 @@
               hx-target="#subject_id"
               hx-trigger="change"
               hx-include="#semester_id"
+              hx-indicator="#subject_loading"
               required
             >
               <option value="">Select semester</option>
             </select>
+
+            <p id="semester_loading" class="htmx-indicator mt-2 loading-pill">
+              Loading semesters...
+            </p>
           </div>
 
           <div>
@@ -68,10 +74,15 @@
               hx-target="#unit_id"
               hx-trigger="change"
               hx-include="#subject_id"
+              hx-indicator="#unit_loading"
               required
             >
               <option value="">Select subject</option>
             </select>
+
+            <p id="subject_loading" class="htmx-indicator mt-2 loading-pill">
+              Loading subjects...
+            </p>
           </div>
 
           <div>
@@ -83,10 +94,15 @@
               hx-target="#chapter_id"
               hx-trigger="change"
               hx-include="#unit_id"
+              hx-indicator="#chapter_loading"
               required
             >
               <option value="">Select unit</option>
             </select>
+
+            <p id="unit_loading" class="htmx-indicator mt-2 loading-pill">
+              Loading units...
+            </p>
           </div>
 
           <div>
@@ -94,6 +110,10 @@
             <select id="chapter_id" name="chapter_id" required>
               <option value="">Select chapter</option>
             </select>
+
+            <p id="chapter_loading" class="htmx-indicator mt-2 loading-pill">
+              Loading chapters...
+            </p>
           </div>
         </div>
 
@@ -384,8 +404,12 @@
           </div>
         </div>
       {{ else }}
-        <div class="card-muted">
-          <p class="text-sm text-academic-600">No notes found.</p>
+        <div class="empty-state">
+          <h3 class="empty-state-title">No notes found</h3>
+          <p class="empty-state-text">
+            Try changing the search keyword or filter. If this is a new
+            platform, upload your first note above.
+          </p>
         </div>
       {{ end }}
     </section>

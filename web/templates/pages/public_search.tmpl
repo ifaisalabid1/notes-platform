@@ -139,17 +139,21 @@
             </div>
           </div>
         {{ else }}
-          <div class="card-muted">
-            <p class="text-sm text-academic-600">
-              No notes matched your search. Try another keyword.
+          <div class="empty-state">
+            <h3 class="empty-state-title">No matching notes found</h3>
+            <p class="empty-state-text">
+              Try searching with a subject name, chapter name, unit name, or a
+              shorter keyword.
             </p>
           </div>
         {{ end }}
       </section>
     {{ else }}
-      <div class="card-muted">
-        <p class="text-sm text-academic-600">
-          Enter a keyword above to search published notes.
+      <div class="empty-state">
+        <h3 class="empty-state-title">Search your study materials</h3>
+        <p class="empty-state-text">
+          Enter a keyword such as a subject, unit, chapter, or topic to find
+          published notes.
         </p>
       </div>
     {{ end }}
