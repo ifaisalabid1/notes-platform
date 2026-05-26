@@ -797,6 +797,11 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
+  .lg\:grid-cols-4 {
+    @media (width >= 64rem) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
   .lg\:grid-cols-5 {
     @media (width >= 64rem) {
       grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -810,6 +815,11 @@
   .lg\:grid-cols-\[1fr_180px_140px_auto\] {
     @media (width >= 64rem) {
       grid-template-columns: 1fr 180px 140px auto;
+    }
+  }
+  .lg\:grid-cols-\[1fr_220px_140px_auto\] {
+    @media (width >= 64rem) {
+      grid-template-columns: 1fr 220px 140px auto;
     }
   }
   .lg\:items-center {
