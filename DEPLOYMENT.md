@@ -40,6 +40,7 @@ WATERMARK_TEXT=
 
 FILE_PROXY_BASE_URL=https://files.your-domain.com
 FILE_PROXY_URL_TTL_SECONDS=300
+MAINTENANCE_MODE=false
 ```
 
 ## Create production owner

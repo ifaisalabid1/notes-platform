@@ -33,18 +33,21 @@ type Dependencies struct {
 	EmbeddedFS       fs.FS
 	LoginRateLimiter *ratelimit.IPLimiter
 	AppBaseURL       string
+	MaintenanceMode  bool
 }
 
 func NewRouter(deps Dependencies) http.Handler {
 	r := chi.NewRouter()
 
 	errorHandler := handlers.NewErrorHandler(deps.Renderer)
+	maintenanceHandler := handlers.NewMaintenanceHandler(deps.Renderer)
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(requestLogger)
 	r.Use(recoverer(errorHandler.InternalServerError))
 	r.Use(securityHeaders)
+	r.Use(maintenanceMode(deps.MaintenanceMode, maintenanceHandler.Show))
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	staticFS, err := fs.Sub(deps.EmbeddedFS, "static")

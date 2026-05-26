@@ -28,6 +28,8 @@ type Config struct {
 	FileProxyBaseURL       string `env:"FILE_PROXY_BASE_URL,required"`
 	FileProxySecret        string `env:"FILE_PROXY_SECRET,required"`
 	FileProxyURLTTLSeconds int    `env:"FILE_PROXY_URL_TTL_SECONDS" envDefault:"300"`
+
+	MaintenanceMode bool `env:"MAINTENANCE_MODE" envDefault:"false"`
 }
 
 func Load() (Config, error) {

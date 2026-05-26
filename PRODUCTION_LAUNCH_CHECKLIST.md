@@ -64,6 +64,7 @@ After owner bootstrap:
 - [ ] `archived_at` exists on notes.
 - [ ] Search indexes exist.
 - [ ] Session table exists and works.
+- [ ] `MAINTENANCE_MODE=false`
 
 Check migration job logs:
 
