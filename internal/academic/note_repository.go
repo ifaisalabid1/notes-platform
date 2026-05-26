@@ -887,3 +887,24 @@ func (r *NoteRepository) UpdateFile(ctx context.Context, params UpdateNoteFilePa
 
 	return updated, nil
 }
+
+func (r *NoteRepository) IncrementViewCount(ctx context.Context, id uuid.UUID) error {
+	if id == uuid.Nil {
+		return ErrNoteNotFound
+	}
+
+	commandTag, err := r.pool.Exec(ctx, `
+		UPDATE notes
+		SET view_count = view_count + 1
+		WHERE id = $1
+	`, id)
+	if err != nil {
+		return fmt.Errorf("increment note view count: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return ErrNoteNotFound
+	}
+
+	return nil
+}

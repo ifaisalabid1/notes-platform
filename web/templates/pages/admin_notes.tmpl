@@ -273,6 +273,7 @@
                 <th>File</th>
                 <th>Type</th>
                 <th>Size</th>
+                <th>Views</th>
                 <th>Published</th>
                 <th>Watermarked</th>
                 <th>Archived</th>
@@ -308,6 +309,7 @@
 
                   <td>{{ .Note.ContentType }}</td>
                   <td>{{ .Note.FileSizeBytes }} bytes</td>
+                  <td>{{ .Note.ViewCount }}</td>
                   <td>{{ if .Note.IsPublished }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ if .Note.IsWatermarked }}Yes{{ else }}No{{ end }}</td>
                   <td>{{ if .Note.ArchivedAt }}Yes{{ else }}No{{ end }}</td>

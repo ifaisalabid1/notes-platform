@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"github.com/ifaisalabid1/notes-platform/internal/academic"
 	"github.com/ifaisalabid1/notes-platform/internal/fileproxy"
@@ -17,17 +19,20 @@ import (
 
 type PublicHandler struct {
 	publicRepo      *academic.PublicRepository
+	noteRepo        *academic.NoteRepository
 	fileProxySigner *fileproxy.Signer
 	renderer        *views.Renderer
 }
 
 func NewPublicHandler(
 	publicRepo *academic.PublicRepository,
+	noteRepo *academic.NoteRepository,
 	fileProxySigner *fileproxy.Signer,
 	renderer *views.Renderer,
 ) *PublicHandler {
 	return &PublicHandler{
 		publicRepo:      publicRepo,
+		noteRepo:        noteRepo,
 		fileProxySigner: fileProxySigner,
 		renderer:        renderer,
 	}
@@ -406,4 +411,41 @@ func buildPublicSearchURL(search string, page int, perPage int) string {
 	values.Set("per_page", strconv.Itoa(perPage))
 
 	return "/search?" + values.Encode()
+}
+
+func (h *PublicHandler) ViewNote(w http.ResponseWriter, r *http.Request) {
+	noteID, err := uuid.Parse(chi.URLParam(r, "noteID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	noteItem, err := h.publicRepo.PublishedNoteByID(r.Context(), noteID)
+	if err != nil {
+		if errors.Is(err, academic.ErrPublicNoteNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		slog.Error("failed to load public note for view", "error", err)
+		http.Error(w, "Failed to load note", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.noteRepo.IncrementViewCount(r.Context(), noteItem.ID); err != nil {
+		slog.Error(
+			"failed to increment note view count",
+			"note_id", noteItem.ID.String(),
+			"error", err,
+		)
+	}
+
+	fileURL, err := h.fileProxySigner.SignedFileURL(noteItem.StorageKey)
+	if err != nil {
+		slog.Error("failed to sign public note file url", "error", err)
+		http.Error(w, "Failed to open note", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, fileURL, http.StatusSeeOther)
 }
