@@ -20,6 +20,7 @@ Install and configure:
 - Neon: PostgreSQL
 - Cloudflare R2: private file storage
 - Cloudflare Worker: private file proxy
+- Cloud Run Job: one-time owner bootstrap
 
 ## Environment variables
 
@@ -39,4 +40,18 @@ WATERMARK_TEXT=
 
 FILE_PROXY_BASE_URL=https://files.your-domain.com
 FILE_PROXY_URL_TTL_SECONDS=300
+```
+
+## Create production owner
+
+After migrations have run, create the owner super admin using the one-time bootstrap job.
+
+Create the bootstrap job:
+
+```bash
+gcloud run jobs create notes-platform-bootstrap-owner \
+  --image="$IMAGE_URI" \
+  --region="$REGION" \
+  --command="/app/bootstrap-owner" \
+  --set-secrets="DATABASE_URL=DATABASE_URL:latest,OWNER_NAME=OWNER_NAME:latest,OWNER_EMAIL=OWNER_EMAIL:latest,OWNER_PASSWORD=OWNER_PASSWORD:latest"
 ```

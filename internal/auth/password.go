@@ -32,8 +32,8 @@ func DefaultPasswordParams() PasswordParams {
 }
 
 func HashPassword(password string) (string, error) {
-	if len(password) < 12 {
-		return "", errors.New("password must be at least 12 characters")
+	if len(password) < 8 {
+		return "", errors.New("password must be at least 8 characters")
 	}
 
 	params := DefaultPasswordParams()
