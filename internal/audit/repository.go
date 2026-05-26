@@ -114,6 +114,8 @@ func (r *Repository) Create(ctx context.Context, params CreateLogParams) error {
 }
 
 type ListParams struct {
+	Search string
+	Action string
 	Limit  int
 	Offset int
 }
@@ -124,6 +126,9 @@ type PaginatedLogs struct {
 }
 
 func (r *Repository) List(ctx context.Context, params ListParams) (PaginatedLogs, error) {
+	search := strings.TrimSpace(params.Search)
+	action := strings.TrimSpace(params.Action)
+
 	limit := params.Limit
 	if limit <= 0 {
 		limit = 50
@@ -138,12 +143,27 @@ func (r *Repository) List(ctx context.Context, params ListParams) (PaginatedLogs
 		offset = 0
 	}
 
+	where := `
+		WHERE (
+			$1 = ''
+			OR action ILIKE '%' || $1 || '%'
+			OR entity_type ILIKE '%' || $1 || '%'
+			OR message ILIKE '%' || $1 || '%'
+			OR ip_address ILIKE '%' || $1 || '%'
+			OR metadata::text ILIKE '%' || $1 || '%'
+		)
+		AND (
+			$2 = ''
+			OR action = $2
+		)
+	`
+
 	var totalCount int
 
 	err := r.pool.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM admin_audit_logs
-	`).Scan(&totalCount)
+	`+where, search, action).Scan(&totalCount)
 	if err != nil {
 		return PaginatedLogs{}, fmt.Errorf("count audit logs: %w", err)
 	}
@@ -161,9 +181,10 @@ func (r *Repository) List(ctx context.Context, params ListParams) (PaginatedLogs
 			user_agent,
 			created_at
 		FROM admin_audit_logs
+	`+where+`
 		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`, limit, offset)
+		LIMIT $3 OFFSET $4
+	`, search, action, limit, offset)
 	if err != nil {
 		return PaginatedLogs{}, fmt.Errorf("list audit logs: %w", err)
 	}
@@ -209,4 +230,34 @@ func (r *Repository) List(ctx context.Context, params ListParams) (PaginatedLogs
 		Logs:       logs,
 		TotalCount: totalCount,
 	}, nil
+}
+
+func (r *Repository) DistinctActions(ctx context.Context) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT action
+		FROM admin_audit_logs
+		ORDER BY action ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list distinct audit actions: %w", err)
+	}
+	defer rows.Close()
+
+	actions := make([]string, 0)
+
+	for rows.Next() {
+		var action string
+
+		if err := rows.Scan(&action); err != nil {
+			return nil, fmt.Errorf("scan audit action: %w", err)
+		}
+
+		actions = append(actions, action)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate audit actions: %w", err)
+	}
+
+	return actions, nil
 }

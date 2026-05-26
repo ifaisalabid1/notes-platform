@@ -3,15 +3,88 @@
     <div>
       <span class="badge">Security</span>
       <h1 class="page-title mt-4">Audit Log</h1>
-      <p class="page-subtitle">Recent admin actions across the platform.</p>
+      <p class="page-subtitle">
+        Search and review recent admin actions across the platform.
+      </p>
     </div>
 
+    <section class="card">
+      <form
+        method="get"
+        action="/admin/audit"
+        class="grid gap-4 lg:grid-cols-[1fr_220px_140px_auto] lg:items-end"
+      >
+        <div>
+          <label for="q">Search</label>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            value="{{ .Data.Pagination.Search }}"
+            placeholder="Search action, entity, message, IP, metadata..."
+          />
+        </div>
+
+        <div>
+          <label for="action">Action</label>
+          <select id="action" name="action">
+            <option value="">All actions</option>
+            {{ range .Data.Actions }}
+              <option
+                value="{{ . }}"
+                {{ if eq . $.Data.Pagination.Action }}selected{{ end }}
+              >
+                {{ . }}
+              </option>
+            {{ end }}
+          </select>
+        </div>
+
+        <div>
+          <label for="per_page">Per page</label>
+          <select id="per_page" name="per_page">
+            <option
+              value="25"
+              {{ if eq .Data.Pagination.PerPage 25 }}selected{{ end }}
+            >
+              25
+            </option>
+            <option
+              value="50"
+              {{ if eq .Data.Pagination.PerPage 50 }}selected{{ end }}
+            >
+              50
+            </option>
+            <option
+              value="100"
+              {{ if eq .Data.Pagination.PerPage 100 }}selected{{ end }}
+            >
+              100
+            </option>
+          </select>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary">Apply</button>
+          <a href="/admin/audit" class="btn-secondary">Reset</a>
+        </div>
+      </form>
+    </section>
+
     <section class="space-y-4">
-      <div>
-        <h2 class="section-title">Recent Activity</h2>
-        <p class="mt-1 text-sm text-academic-500">
-          Showing latest {{ len .Data.Logs }} of {{ .Data.TotalCount }} events.
-        </p>
+      <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <h2 class="section-title">Recent Activity</h2>
+          <p class="mt-1 text-sm text-academic-500">
+            Showing page {{ .Data.Pagination.Page }} of
+            {{ if .Data.Pagination.TotalPages }}
+              {{ .Data.Pagination.TotalPages }}
+            {{ else }}
+              1
+            {{ end }}
+            · {{ .Data.Pagination.TotalCount }} total events
+          </p>
+        </div>
       </div>
 
       {{ with .Data.Logs }}
@@ -33,11 +106,15 @@
                   <td>{{ .CreatedAt.Format "2006-01-02 15:04:05" }}</td>
                   <td class="font-medium text-academic-900">{{ .Action }}</td>
                   <td>
-                    {{ .EntityType }}
+                    <div class="text-sm text-academic-700">
+                      {{ .EntityType }}
+                    </div>
                     {{ if .EntityID }}
-                      <span class="text-xs text-academic-500"
-                        >{{ .EntityID }}</span
+                      <div
+                        class="mt-1 max-w-xs break-all text-xs text-academic-500"
                       >
+                        {{ .EntityID }}
+                      </div>
                     {{ end }}
                   </td>
                   <td>{{ .Message }}</td>
@@ -49,11 +126,48 @@
             </tbody>
           </table>
         </div>
+
+        <div
+          class="flex flex-col justify-between gap-3 pt-4 sm:flex-row sm:items-center"
+        >
+          <p class="text-sm text-academic-500">
+            Page {{ $.Data.Pagination.Page }} of
+            {{ if $.Data.Pagination.TotalPages }}
+              {{ $.Data.Pagination.TotalPages }}
+            {{ else }}
+              1
+            {{ end }}
+          </p>
+
+          <div class="flex gap-2">
+            {{ if $.Data.Pagination.HasPrevious }}
+              <a
+                href="{{ $.Data.Pagination.PreviousURL }}"
+                class="btn-secondary"
+                >Previous</a
+              >
+            {{ else }}
+              <span class="btn-secondary cursor-not-allowed opacity-50"
+                >Previous</span
+              >
+            {{ end }}
+
+            {{ if $.Data.Pagination.HasNext }}
+              <a href="{{ $.Data.Pagination.NextURL }}" class="btn-secondary"
+                >Next</a
+              >
+            {{ else }}
+              <span class="btn-secondary cursor-not-allowed opacity-50"
+                >Next</span
+              >
+            {{ end }}
+          </div>
+        </div>
       {{ else }}
         <div class="empty-state">
-          <h3 class="empty-state-title">No audit logs yet</h3>
+          <h3 class="empty-state-title">No audit logs found</h3>
           <p class="empty-state-text">
-            Admin actions will appear here once content is created or updated.
+            Try changing the search or action filter.
           </p>
         </div>
       {{ end }}
