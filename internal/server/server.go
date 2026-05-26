@@ -153,6 +153,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Get("/readyz", healthHandler.Ready)
 
 	r.Get("/", publicHandler.Home)
+	r.Get("/search", publicHandler.Search)
 	r.Get("/robots.txt", seoHandler.Robots)
 	r.Get("/sitemap.xml", seoHandler.Sitemap)
 

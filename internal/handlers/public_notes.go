@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -72,6 +75,28 @@ type PublicNotesPageData struct {
 	Unit     academic.Unit
 	Chapter  academic.Chapter
 	Notes    []PublicNoteItem
+}
+
+type PublicSearchItem struct {
+	Note    academic.Note
+	FileURL string
+}
+
+type PublicSearchPagination struct {
+	Query       string
+	Page        int
+	PerPage     int
+	TotalCount  int
+	TotalPages  int
+	HasPrevious bool
+	HasNext     bool
+	PreviousURL string
+	NextURL     string
+}
+
+type PublicSearchPageData struct {
+	Results    []PublicSearchItem
+	Pagination PublicSearchPagination
 }
 
 func (h *PublicHandler) Home(w http.ResponseWriter, r *http.Request) {
@@ -230,4 +255,110 @@ func (h *PublicHandler) Notes(w http.ResponseWriter, r *http.Request) {
 			Notes:    noteItems,
 		},
 	})
+}
+
+func (h *PublicHandler) Search(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+
+	searchQuery := strings.TrimSpace(queryValues.Get("q"))
+	page := parsePositiveInt(queryValues.Get("page"), 1)
+	perPage := parsePositiveInt(queryValues.Get("per_page"), 20)
+
+	if perPage > 50 {
+		perPage = 50
+	}
+
+	offset := (page - 1) * perPage
+
+	searchResult, err := h.publicRepo.SearchPublishedNotes(r.Context(), academic.PublicNoteSearchParams{
+		Query:  searchQuery,
+		Limit:  perPage,
+		Offset: offset,
+	})
+	if err != nil {
+		slog.Error("failed to search public notes", "error", err)
+		http.Error(w, "Failed to search notes", http.StatusInternalServerError)
+		return
+	}
+
+	totalPages := 0
+	if searchResult.TotalCount > 0 {
+		totalPages = (searchResult.TotalCount + perPage - 1) / perPage
+	}
+
+	if totalPages > 0 && page > totalPages {
+		page = totalPages
+		offset = (page - 1) * perPage
+
+		searchResult, err = h.publicRepo.SearchPublishedNotes(r.Context(), academic.PublicNoteSearchParams{
+			Query:  searchQuery,
+			Limit:  perPage,
+			Offset: offset,
+		})
+		if err != nil {
+			slog.Error("failed to search public notes after page correction", "error", err)
+			http.Error(w, "Failed to search notes", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	items := make([]PublicSearchItem, 0, len(searchResult.Notes))
+
+	for _, note := range searchResult.Notes {
+		fileURL, err := h.fileProxySigner.SignedFileURL(note.StorageKey)
+		if err != nil {
+			slog.Error("failed to sign public search note url", "error", err)
+			http.Error(w, "Failed to load note links", http.StatusInternalServerError)
+			return
+		}
+
+		items = append(items, PublicSearchItem{
+			Note:    note,
+			FileURL: fileURL,
+		})
+	}
+
+	hasPrevious := page > 1
+	hasNext := totalPages > 0 && page < totalPages
+
+	previousURL := ""
+	if hasPrevious {
+		previousURL = buildPublicSearchURL(searchQuery, page-1, perPage)
+	}
+
+	nextURL := ""
+	if hasNext {
+		nextURL = buildPublicSearchURL(searchQuery, page+1, perPage)
+	}
+
+	h.renderer.Render(w, r, "public_search.tmpl", views.TemplateData{
+		Title: "Search Notes",
+		Data: PublicSearchPageData{
+			Results: items,
+			Pagination: PublicSearchPagination{
+				Query:       searchQuery,
+				Page:        page,
+				PerPage:     perPage,
+				TotalCount:  searchResult.TotalCount,
+				TotalPages:  totalPages,
+				HasPrevious: hasPrevious,
+				HasNext:     hasNext,
+				PreviousURL: previousURL,
+				NextURL:     nextURL,
+			},
+		},
+	})
+}
+
+func buildPublicSearchURL(search string, page int, perPage int) string {
+	values := url.Values{}
+
+	if strings.TrimSpace(search) != "" {
+		values.Set("q", strings.TrimSpace(search))
+	}
+
+	values.Set("page", strconv.Itoa(page))
+	values.Set("per_page", strconv.Itoa(perPage))
+
+	return "/search?" + values.Encode()
 }

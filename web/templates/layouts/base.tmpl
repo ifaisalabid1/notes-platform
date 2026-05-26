@@ -27,6 +27,21 @@
               <span class="text-base font-bold">Notes Platform</span>
             </a>
 
+            <form
+              method="get"
+              action="/search"
+              class="hidden w-full max-w-sm md:block"
+            >
+              <label for="site-search" class="sr-only">Search notes</label>
+              <input
+                id="site-search"
+                name="q"
+                type="search"
+                placeholder="Search notes..."
+                class="h-10"
+              />
+            </form>
+
             <nav class="flex items-center gap-5">
               <a class="nav-link" href="/">Browse Notes</a>
 

@@ -3,6 +3,7 @@ package academic
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,6 +17,17 @@ func NewPublicRepository(pool *pgxpool.Pool) *PublicRepository {
 	return &PublicRepository{
 		pool: pool,
 	}
+}
+
+type PublicNoteSearchParams struct {
+	Query  string
+	Limit  int
+	Offset int
+}
+
+type PublicNoteSearchResult struct {
+	Notes      []Note
+	TotalCount int
 }
 
 func (r *PublicRepository) PublishedClasses(ctx context.Context) ([]Class, error) {
@@ -821,4 +833,156 @@ func (r *PublicRepository) ChaptersByUnitID(ctx context.Context, unitID uuid.UUI
 	}
 
 	return items, nil
+}
+
+func (r *PublicRepository) SearchPublishedNotes(ctx context.Context, params PublicNoteSearchParams) (PublicNoteSearchResult, error) {
+	query := strings.TrimSpace(params.Query)
+
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	if limit > 50 {
+		limit = 50
+	}
+
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	if query == "" {
+		return PublicNoteSearchResult{
+			Notes:      []Note{},
+			TotalCount: 0,
+		}, nil
+	}
+
+	where := `
+		WHERE c.is_published = TRUE
+		AND sem.is_published = TRUE
+		AND sub.is_published = TRUE
+		AND u.is_published = TRUE
+		AND ch.is_published = TRUE
+		AND n.is_published = TRUE
+		AND n.archived_at IS NULL
+		AND (
+			n.title ILIKE '%' || $1 || '%'
+			OR COALESCE(n.description, '') ILIKE '%' || $1 || '%'
+			OR n.original_file_name ILIKE '%' || $1 || '%'
+			OR ch.name ILIKE '%' || $1 || '%'
+			OR u.name ILIKE '%' || $1 || '%'
+			OR sub.name ILIKE '%' || $1 || '%'
+			OR sem.name ILIKE '%' || $1 || '%'
+			OR c.name ILIKE '%' || $1 || '%'
+		)
+	`
+
+	var totalCount int
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+	`+where, query).Scan(&totalCount)
+	if err != nil {
+		return PublicNoteSearchResult{}, fmt.Errorf("count public note search results: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			n.id,
+			n.chapter_id,
+			ch.name AS chapter_name,
+			u.name AS unit_name,
+			sub.name AS subject_name,
+			sem.name AS semester_name,
+			c.name AS class_name,
+			n.title,
+			n.slug,
+			n.description,
+			n.original_file_name,
+			n.stored_file_name,
+			n.storage_key,
+			n.content_type,
+			n.file_size_bytes,
+			n.is_pdf,
+			n.is_watermarked,
+			n.download_count,
+			n.view_count,
+			n.sort_order,
+			n.is_published,
+			n.uploaded_by,
+			n.archived_at,
+			n.created_at,
+			n.updated_at
+		FROM notes n
+		JOIN chapters ch ON ch.id = n.chapter_id
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+	`+where+`
+		ORDER BY
+			n.created_at DESC,
+			n.title ASC
+		LIMIT $2 OFFSET $3
+	`, query, limit, offset)
+	if err != nil {
+		return PublicNoteSearchResult{}, fmt.Errorf("search public notes: %w", err)
+	}
+	defer rows.Close()
+
+	notes := make([]Note, 0)
+
+	for rows.Next() {
+		var item Note
+
+		err := rows.Scan(
+			&item.ID,
+			&item.ChapterID,
+			&item.ChapterName,
+			&item.UnitName,
+			&item.SubjectName,
+			&item.SemesterName,
+			&item.ClassName,
+			&item.Title,
+			&item.Slug,
+			&item.Description,
+			&item.OriginalFileName,
+			&item.StoredFileName,
+			&item.StorageKey,
+			&item.ContentType,
+			&item.FileSizeBytes,
+			&item.IsPDF,
+			&item.IsWatermarked,
+			&item.DownloadCount,
+			&item.ViewCount,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.UploadedBy,
+			&item.ArchivedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return PublicNoteSearchResult{}, fmt.Errorf("scan public note search result: %w", err)
+		}
+
+		notes = append(notes, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return PublicNoteSearchResult{}, fmt.Errorf("iterate public note search results: %w", err)
+	}
+
+	return PublicNoteSearchResult{
+		Notes:      notes,
+		TotalCount: totalCount,
+	}, nil
 }
