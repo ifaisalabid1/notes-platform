@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ID="${PROJECT_ID:?PROJECT_ID is required}"
-REGION="${REGION:-asia-south1}"
+REGION="${REGION:-asia-southeast1}"
 REPOSITORY="${REPOSITORY:-notes-platform}"
 SERVICE_NAME="${SERVICE_NAME:-notes-platform}"
 JOB_NAME="${JOB_NAME:-notes-platform-migrate}"

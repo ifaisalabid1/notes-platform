@@ -1,6 +1,6 @@
-# Notes Platform Backup and Recovery Guide
+# Rising Star Backup and Recovery Guide
 
-This guide explains how to recover the Notes Platform production system if something goes wrong.
+This guide explains how to recover the Rising Star production system if something goes wrong.
 
 The platform uses:
 

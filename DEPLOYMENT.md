@@ -1,4 +1,4 @@
-# Notes Platform Deployment Guide
+# Rising Star Deployment Guide
 
 This project deploys to Google Cloud Run, uses Neon PostgreSQL, Cloudflare R2 for private file storage, and a Cloudflare Worker for secure file streaming.
 

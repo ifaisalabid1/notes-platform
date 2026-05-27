@@ -21,7 +21,7 @@ type Config struct {
 	R2SecretAccessKey string `env:"R2_SECRET_ACCESS_KEY,required"`
 	R2BucketName      string `env:"R2_BUCKET_NAME,required"`
 
-	BrandName     string `env:"BRAND_NAME" envDefault:"Notes Platform"`
+	BrandName     string `env:"BRAND_NAME" envDefault:"Rising Star"`
 	BrandURL      string `env:"BRAND_URL" envDefault:""`
 	WatermarkText string `env:"WATERMARK_TEXT" envDefault:""`
 

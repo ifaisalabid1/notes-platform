@@ -21,6 +21,6 @@ func (h *MaintenanceHandler) Show(w http.ResponseWriter, r *http.Request) {
 
 	h.renderer.Render(w, r, "maintenance.tmpl", views.TemplateData{
 		Title:       "Maintenance",
-		Description: "Notes Platform is temporarily unavailable while maintenance is in progress.",
+		Description: "Rising Star is temporarily unavailable while maintenance is in progress.",
 	})
 }

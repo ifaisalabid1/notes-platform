@@ -127,7 +127,7 @@ func (r *Renderer) RenderPartial(w http.ResponseWriter, req *http.Request, name 
 
 func (r *Renderer) prepareTemplateData(req *http.Request, data TemplateData) TemplateData {
 	if data.Title == "" {
-		data.Title = "Notes Platform"
+		data.Title = "Rising Star"
 	}
 
 	if data.Description == "" {

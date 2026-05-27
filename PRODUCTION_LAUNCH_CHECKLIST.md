@@ -1,4 +1,4 @@
-# Notes Platform Production Launch Checklist
+# Rising Star Production Launch Checklist
 
 Use this checklist before making the site public.
 
