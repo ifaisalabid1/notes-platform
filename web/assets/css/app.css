@@ -138,12 +138,12 @@
   }
 
   .htmx-indicator {
-    @apply hidden;
+    display: none;
   }
 
   .htmx-request .htmx-indicator,
   .htmx-request.htmx-indicator {
-    @apply inline-flex;
+    display: inline-flex;
   }
 
   .loading-pill {
