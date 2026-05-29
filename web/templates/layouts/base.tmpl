@@ -144,18 +144,6 @@
                   >
                     Notes
                   </a>
-                {{ else }}
-                  <a
-                    class="rounded-xl px-3 py-2 text-sm font-medium transition {{ if isActivePath .CurrentPath "/admin/login" }}
-                      bg-brand-50 text-brand-700
-                    {{ else }}
-                      text-academic-600 hover:bg-academic-50
-                      hover:text-brand-700
-                    {{ end }}"
-                    href="/admin/login"
-                  >
-                    Admin Login
-                  </a>
                 {{ end }}
               </nav>
 
@@ -277,18 +265,6 @@
                           Logout
                         </button>
                       </form>
-                    {{ else }}
-                      <a
-                        class="rounded-xl px-3 py-2 text-sm font-medium {{ if isActivePath .CurrentPath "/admin/login" }}
-                          bg-brand-50 text-brand-700
-                        {{ else }}
-                          text-academic-700 hover:bg-academic-50
-                          hover:text-brand-700
-                        {{ end }}"
-                        href="/admin/login"
-                      >
-                        Admin Login
-                      </a>
                     {{ end }}
                   </nav>
                 </div>
