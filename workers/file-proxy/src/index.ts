@@ -63,11 +63,15 @@ export default {
 
 		const fileName = safeFileName(object.key);
 
+		const contentType = headers.get('content-type') || 'application/octet-stream';
 		if (!headers.has('content-type')) {
-			headers.set('content-type', 'application/octet-stream');
+			headers.set('content-type', contentType);
 		}
 
-		headers.set('content-disposition', `inline; filename="${fileName}"`);
+		const isInlineable = contentType === 'application/pdf' || contentType.startsWith('image/');
+		const dispositionType = isInlineable ? 'inline' : 'attachment';
+
+		headers.set('content-disposition', `${dispositionType}; filename="${fileName}"`);
 
 		if (request.method === 'HEAD') {
 			return new Response(null, {
