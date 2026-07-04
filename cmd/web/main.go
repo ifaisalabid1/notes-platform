@@ -104,6 +104,7 @@ func main() {
 		LoginRateLimiter: loginRateLimiter,
 		AppBaseURL:       cfg.AppBaseURL,
 		MaintenanceMode:  cfg.MaintenanceMode,
+		IsProduction:     cfg.IsProduction(),
 	})
 
 	httpServer := &http.Server{

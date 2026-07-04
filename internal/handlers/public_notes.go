@@ -41,6 +41,7 @@ func NewPublicHandler(
 type PublicClassesPageData struct {
 	Classes     []academic.Class
 	LatestNotes []PublicLatestNoteItem
+	Galleries   []PublicGallerySubjectItem
 }
 
 type PublicSemestersPageData struct {
@@ -86,6 +87,47 @@ type PublicNotesPageData struct {
 type PublicLatestNoteItem struct {
 	Note    academic.Note
 	FileURL string
+}
+
+type PublicGallerySubjectItem struct {
+	SubjectID    uuid.UUID
+	SubjectName  string
+	ClassName    string
+	SemesterName string
+	ChapterCount int
+	PhotoCount   int
+	CoverPhoto   PublicGalleryPhoto
+	URL          string
+}
+
+type PublicGalleryChapterItem struct {
+	ChapterID   uuid.UUID
+	ChapterName string
+	UnitName    string
+	PhotoCount  int
+	CoverPhoto  PublicGalleryPhoto
+	URL         string
+}
+
+type PublicGalleryPhoto struct {
+	Title   string
+	FileURL string
+}
+
+type PublicGallerySubjectPageData struct {
+	SubjectName  string
+	ClassName    string
+	SemesterName string
+	Chapters     []PublicGalleryChapterItem
+}
+
+type PublicGalleryChapterPageData struct {
+	Class    academic.Class
+	Semester academic.Semester
+	Subject  academic.Subject
+	Unit     academic.Unit
+	Chapter  academic.Chapter
+	Photos   []PublicGalleryPhoto
 }
 
 type PublicSearchItem struct {
@@ -141,12 +183,174 @@ func (h *PublicHandler) Home(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	galleries, err := h.homeGallerySubjects(r, 11)
+	if err != nil {
+		slog.Error("failed to load homepage galleries", "error", err)
+		http.Error(w, "Failed to load galleries", http.StatusInternalServerError)
+		return
+	}
+
+	var styles []string
+	var scripts []string
+
+	if len(galleries) > 0 {
+		styles = []string{
+			"/static/vendor/swiper/swiper-bundle.min.css",
+		}
+		scripts = []string{
+			"/static/vendor/swiper/swiper-bundle.min.js",
+			"/static/js/home-gallery.js",
+		}
+	}
+
 	h.renderer.Render(w, r, "public_classes.tmpl", views.TemplateData{
 		Title:       "Browse Classes",
 		Description: "Browse class notes, semesters, subjects, units, chapters, and recently published study materials.",
+		Styles:      styles,
+		Scripts:     scripts,
 		Data: PublicClassesPageData{
 			Classes:     classes,
 			LatestNotes: latestNoteItems,
+			Galleries:   galleries,
+		},
+	})
+}
+
+func (h *PublicHandler) homeGallerySubjects(r *http.Request, limit int) ([]PublicGallerySubjectItem, error) {
+	subjects, err := h.publicRepo.PublishedImageGallerySubjects(r.Context(), limit)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]PublicGallerySubjectItem, 0, len(subjects))
+
+	for _, subject := range subjects {
+		fileURL, err := h.fileProxySigner.SignedFileURL(subject.CoverNote.StorageKey)
+		if err != nil {
+			return nil, fmt.Errorf("sign gallery subject cover url: %w", err)
+		}
+
+		items = append(items, PublicGallerySubjectItem{
+			SubjectID:    subject.SubjectID,
+			SubjectName:  subject.SubjectName,
+			ClassName:    subject.ClassName,
+			SemesterName: subject.SemesterName,
+			ChapterCount: subject.ChapterCount,
+			PhotoCount:   subject.PhotoCount,
+			CoverPhoto: PublicGalleryPhoto{
+				Title:   subject.CoverNote.Title,
+				FileURL: fileURL,
+			},
+			URL: "/gallery/subjects/" + subject.SubjectID.String(),
+		})
+	}
+
+	return items, nil
+}
+
+func (h *PublicHandler) GallerySubject(w http.ResponseWriter, r *http.Request) {
+	subjectID, err := uuid.Parse(chi.URLParam(r, "subjectID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	chapters, err := h.publicRepo.PublishedImageGalleryChaptersBySubjectID(r.Context(), subjectID)
+	if err != nil {
+		slog.Error("failed to load public gallery subject chapters", "error", err)
+		http.Error(w, "Failed to load gallery chapters", http.StatusInternalServerError)
+		return
+	}
+
+	if len(chapters) == 0 {
+		http.NotFound(w, r)
+		return
+	}
+
+	items := make([]PublicGalleryChapterItem, 0, len(chapters))
+
+	for _, chapter := range chapters {
+		fileURL, err := h.fileProxySigner.SignedFileURL(chapter.CoverNote.StorageKey)
+		if err != nil {
+			slog.Error("failed to sign gallery chapter cover url", "error", err)
+			http.Error(w, "Failed to load gallery chapter links", http.StatusInternalServerError)
+			return
+		}
+
+		items = append(items, PublicGalleryChapterItem{
+			ChapterID:   chapter.ChapterID,
+			ChapterName: chapter.ChapterName,
+			UnitName:    chapter.UnitName,
+			PhotoCount:  chapter.PhotoCount,
+			CoverPhoto: PublicGalleryPhoto{
+				Title:   chapter.CoverNote.Title,
+				FileURL: fileURL,
+			},
+			URL: "/gallery/chapters/" + chapter.ChapterID.String(),
+		})
+	}
+
+	first := chapters[0]
+
+	h.renderer.Render(w, r, "public_gallery_subject.tmpl", views.TemplateData{
+		Title:       fmt.Sprintf("%s Gallery", first.SubjectName),
+		Description: fmt.Sprintf("Browse photo gallery chapters for %s.", first.SubjectName),
+		Data: PublicGallerySubjectPageData{
+			SubjectName:  first.SubjectName,
+			ClassName:    first.ClassName,
+			SemesterName: first.SemesterName,
+			Chapters:     items,
+		},
+	})
+}
+
+func (h *PublicHandler) GalleryChapter(w http.ResponseWriter, r *http.Request) {
+	chapterID, err := uuid.Parse(chi.URLParam(r, "chapterID"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	classItem, semesterItem, subjectItem, unitItem, chapterItem, notes, err := h.publicRepo.PublishedImageGalleryNotesByChapterID(r.Context(), chapterID)
+	if err != nil {
+		slog.Error("failed to load public gallery chapter photos", "error", err)
+		http.NotFound(w, r)
+		return
+	}
+
+	photos := make([]PublicGalleryPhoto, 0, len(notes))
+
+	for _, note := range notes {
+		fileURL, err := h.fileProxySigner.SignedFileURL(note.StorageKey)
+		if err != nil {
+			slog.Error("failed to sign gallery chapter photo url", "error", err)
+			http.Error(w, "Failed to load gallery photos", http.StatusInternalServerError)
+			return
+		}
+
+		photos = append(photos, PublicGalleryPhoto{
+			Title:   note.Title,
+			FileURL: fileURL,
+		})
+	}
+
+	h.renderer.Render(w, r, "public_gallery_chapter.tmpl", views.TemplateData{
+		Title:       fmt.Sprintf("%s Gallery", chapterItem.Name),
+		Description: fmt.Sprintf("View gallery photos for %s in %s.", chapterItem.Name, subjectItem.Name),
+		Styles: []string{
+			"/static/vendor/glightbox/glightbox.min.css",
+		},
+		Scripts: []string{
+			"/static/vendor/glightbox/glightbox.min.js",
+			"/static/js/gallery-lightbox.js",
+		},
+		Data: PublicGalleryChapterPageData{
+			Class:    classItem,
+			Semester: semesterItem,
+			Subject:  subjectItem,
+			Unit:     unitItem,
+			Chapter:  chapterItem,
+			Photos:   photos,
 		},
 	})
 }

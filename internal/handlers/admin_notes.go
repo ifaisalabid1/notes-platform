@@ -146,11 +146,6 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 		sortOrder = parsedSortOrder
 	}
 
-	if title == "" {
-		h.renderIndexWithError(w, r, "Note title is required.")
-		return
-	}
-
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		h.renderIndexWithError(w, r, "Please choose a file.")
@@ -172,70 +167,61 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	noteID := uuid.New()
-	storedFileName := buildStoredFileName(noteID, validatedFile.OriginalFileName)
-	storageKey := buildNoteStorageKey(chapterID, noteID, storedFileName)
-
-	fileData := validatedFile.Data
-	fileSizeBytes := validatedFile.SizeBytes
-	isWatermarked := false
-
-	if validatedFile.IsPDF {
-		watermarkedPDF, err := h.pdfWatermarker.Apply(validatedFile.Data)
+	if validatedFile.IsZIP {
+		imageFiles, err := uploads.ValidateZipImageFiles(validatedFile)
 		if err != nil {
-			slog.Error("failed to watermark pdf", "error", err)
-			h.renderIndexWithError(w, r, "Failed to watermark PDF.")
+			h.renderIndexWithError(w, r, err.Error())
 			return
 		}
 
-		fileData = watermarkedPDF.Data
-		fileSizeBytes = int64(len(watermarkedPDF.Data))
-		isWatermarked = true
-	}
+		createdNotes, err := h.storeZipImageNotes(r, chapterID, title, description, sortOrder, isPublished, uploadedBy, imageFiles)
+		if err != nil {
+			slog.Error("failed to import zip image notes", "error", err)
+			h.renderIndexWithError(w, r, err.Error())
+			return
+		}
 
-	_, err = h.r2.UploadObject(r.Context(), storage.UploadObjectParams{
-		Key:         storageKey,
-		Body:        uploads.Reader(fileData),
-		ContentType: validatedFile.ContentType,
-		SizeBytes:   fileSizeBytes,
-	})
-	if err != nil {
-		slog.Error("failed to upload note file to r2", "error", err)
-		h.renderIndexWithError(w, r, "Failed to upload file.")
+		writeAuditLog(
+			r,
+			h.sessionManager,
+			h.auditRepo,
+			"note_zip_imported",
+			"note",
+			nil,
+			"Imported gallery images from ZIP",
+			map[string]any{
+				"chapter_id":     chapterID.String(),
+				"image_count":    len(createdNotes),
+				"is_published":   isPublished,
+				"zip_file_name":  validatedFile.OriginalFileName,
+				"title_prefix":   title,
+				"first_note_id":  createdNotes[0].ID.String(),
+				"first_note_key": createdNotes[0].StorageKey,
+			},
+		)
+
+		h.sessionManager.Put(r.Context(), "flash", fmt.Sprintf("Imported %d gallery image%s.", len(createdNotes), pluralSuffix(len(createdNotes))))
+		http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
 		return
 	}
 
-	createdNote, err := h.noteRepo.Create(r.Context(), academic.CreateNoteParams{
-		ChapterID:        chapterID,
-		Title:            title,
-		Description:      description,
-		OriginalFileName: validatedFile.OriginalFileName,
-		StoredFileName:   storedFileName,
-		StorageKey:       storageKey,
-		ContentType:      validatedFile.ContentType,
-		FileSizeBytes:    fileSizeBytes,
-		IsPDF:            validatedFile.IsPDF,
-		IsWatermarked:    isWatermarked,
-		SortOrder:        sortOrder,
-		IsPublished:      isPublished,
-		UploadedBy:       uploadedBy,
+	if title == "" {
+		h.renderIndexWithError(w, r, "Note title is required.")
+		return
+	}
+
+	createdNote, err := h.storeUploadedNote(r, storeUploadedNoteParams{
+		ChapterID:      chapterID,
+		Title:          title,
+		Description:    description,
+		SortOrder:      sortOrder,
+		IsPublished:    isPublished,
+		UploadedBy:     uploadedBy,
+		File:           validatedFile,
+		AllowTitleCopy: false,
 	})
 	if err != nil {
-		if cleanupErr := h.r2.DeleteObject(r.Context(), storageKey); cleanupErr != nil {
-			slog.Error(
-				"failed to cleanup r2 object after note metadata error",
-				"storage_key", storageKey,
-				"error", cleanupErr,
-			)
-		}
-
-		if isUniqueViolation(err) {
-			h.renderIndexWithError(w, r, "A note with this title already exists for the selected chapter.")
-			return
-		}
-
-		slog.Error("failed to save note metadata", "error", err)
-		h.renderIndexWithError(w, r, "Failed to save note metadata. Uploaded file was cleaned up.")
+		h.renderIndexWithError(w, r, err.Error())
 		return
 	}
 
@@ -259,6 +245,125 @@ func (h *AdminNoteHandler) Store(w http.ResponseWriter, r *http.Request) {
 	)
 
 	http.Redirect(w, r, "/admin/notes", http.StatusSeeOther)
+}
+
+type storeUploadedNoteParams struct {
+	ChapterID      uuid.UUID
+	Title          string
+	Description    string
+	SortOrder      int
+	IsPublished    bool
+	UploadedBy     uuid.UUID
+	File           uploads.ValidatedFile
+	AllowTitleCopy bool
+}
+
+func (h *AdminNoteHandler) storeZipImageNotes(
+	r *http.Request,
+	chapterID uuid.UUID,
+	titlePrefix string,
+	description string,
+	sortOrder int,
+	isPublished bool,
+	uploadedBy uuid.UUID,
+	files []uploads.ValidatedFile,
+) ([]academic.Note, error) {
+	createdNotes := make([]academic.Note, 0, len(files))
+
+	for index, file := range files {
+		imageTitle := imageNoteTitle(titlePrefix, file.OriginalFileName, index+1)
+
+		createdNote, err := h.storeUploadedNote(r, storeUploadedNoteParams{
+			ChapterID:      chapterID,
+			Title:          imageTitle,
+			Description:    description,
+			SortOrder:      sortOrder + index,
+			IsPublished:    isPublished,
+			UploadedBy:     uploadedBy,
+			File:           file,
+			AllowTitleCopy: true,
+		})
+		if err != nil {
+			return createdNotes, fmt.Errorf("import %s: %w", file.OriginalFileName, err)
+		}
+
+		createdNotes = append(createdNotes, createdNote)
+	}
+
+	return createdNotes, nil
+}
+
+func (h *AdminNoteHandler) storeUploadedNote(r *http.Request, params storeUploadedNoteParams) (academic.Note, error) {
+	noteID := uuid.New()
+	storedFileName := buildStoredFileName(noteID, params.File.OriginalFileName)
+	storageKey := buildNoteStorageKey(params.ChapterID, noteID, storedFileName)
+
+	fileData := params.File.Data
+	fileSizeBytes := params.File.SizeBytes
+	isWatermarked := false
+
+	if params.File.IsPDF {
+		watermarkedPDF, err := h.pdfWatermarker.Apply(params.File.Data)
+		if err != nil {
+			slog.Error("failed to watermark pdf", "error", err)
+			return academic.Note{}, errors.New("failed to watermark PDF")
+		}
+
+		fileData = watermarkedPDF.Data
+		fileSizeBytes = int64(len(watermarkedPDF.Data))
+		isWatermarked = true
+	}
+
+	_, err := h.r2.UploadObject(r.Context(), storage.UploadObjectParams{
+		Key:         storageKey,
+		Body:        uploads.Reader(fileData),
+		ContentType: params.File.ContentType,
+		SizeBytes:   fileSizeBytes,
+	})
+	if err != nil {
+		slog.Error("failed to upload note file to r2", "error", err)
+		return academic.Note{}, errors.New("failed to upload file")
+	}
+
+	createParams := academic.CreateNoteParams{
+		ChapterID:        params.ChapterID,
+		Title:            params.Title,
+		Description:      params.Description,
+		OriginalFileName: params.File.OriginalFileName,
+		StoredFileName:   storedFileName,
+		StorageKey:       storageKey,
+		ContentType:      params.File.ContentType,
+		FileSizeBytes:    fileSizeBytes,
+		IsPDF:            params.File.IsPDF,
+		IsWatermarked:    isWatermarked,
+		SortOrder:        params.SortOrder,
+		IsPublished:      params.IsPublished,
+		UploadedBy:       params.UploadedBy,
+	}
+
+	createdNote, err := h.noteRepo.Create(r.Context(), createParams)
+	if err != nil && params.AllowTitleCopy && isUniqueViolation(err) {
+		createParams.Title = fmt.Sprintf("%s %s", params.Title, noteID.String()[:8])
+		createdNote, err = h.noteRepo.Create(r.Context(), createParams)
+	}
+	if err != nil {
+		if cleanupErr := h.r2.DeleteObject(r.Context(), storageKey); cleanupErr != nil {
+			slog.Error(
+				"failed to cleanup r2 object after note metadata error",
+				"storage_key", storageKey,
+				"error", cleanupErr,
+			)
+		}
+
+		if isUniqueViolation(err) {
+			return academic.Note{}, errors.New("a note with this title already exists for the selected chapter")
+		}
+
+		slog.Error("failed to save note metadata", "error", err)
+		return academic.Note{}, errors.New("failed to save note metadata. Uploaded file was cleaned up")
+	}
+
+	return createdNote, nil
 }
 
 func (h *AdminNoteHandler) renderIndexWithError(w http.ResponseWriter, r *http.Request, message string) {
@@ -380,6 +485,31 @@ func buildStoredFileName(noteID uuid.UUID, originalFileName string) string {
 	}
 
 	return fmt.Sprintf("%s%s", noteID.String(), extension)
+}
+
+func imageNoteTitle(prefix string, originalFileName string, index int) string {
+	baseName := strings.TrimSpace(strings.TrimSuffix(filepath.Base(originalFileName), filepath.Ext(originalFileName)))
+	baseName = strings.ReplaceAll(baseName, "_", " ")
+	baseName = strings.ReplaceAll(baseName, "-", " ")
+	baseName = strings.Join(strings.Fields(baseName), " ")
+
+	if baseName == "" {
+		baseName = fmt.Sprintf("Image %02d", index)
+	}
+
+	if strings.TrimSpace(prefix) == "" {
+		return baseName
+	}
+
+	return fmt.Sprintf("%s - %s", strings.TrimSpace(prefix), baseName)
+}
+
+func pluralSuffix(count int) string {
+	if count == 1 {
+		return ""
+	}
+
+	return "s"
 }
 
 func buildNoteStorageKey(chapterID uuid.UUID, noteID uuid.UUID, storedFileName string) string {

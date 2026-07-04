@@ -35,6 +35,8 @@ type TemplateData struct {
 	Description     string
 	CanonicalURL    string
 	OGType          string
+	Styles          []string
+	Scripts         []string
 	CurrentPath     string
 	CSRFToken       string
 	IsAuthenticated bool

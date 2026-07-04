@@ -168,5 +168,95 @@
         </div>
       {{ end }}
     </section>
+
+    {{ if .Data.Galleries }}
+      <section id="gallery" class="space-y-4">
+        <div
+          class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"
+        >
+          <div>
+            <h2 class="section-title">Photo Gallery</h2>
+            <p class="mt-1 text-sm text-academic-500">
+              Browse classroom photos by subject and chapter.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="gallery-swiper-prev gallery-control"
+              aria-label="Previous gallery"
+            >
+              &lsaquo;
+            </button>
+            <button
+              type="button"
+              class="gallery-swiper-next gallery-control"
+              aria-label="Next gallery"
+            >
+              &rsaquo;
+            </button>
+          </div>
+        </div>
+
+        <div class="swiper gallery-swiper" data-gallery-swiper>
+          <div class="swiper-wrapper">
+            {{ range .Data.Galleries }}
+              <article class="swiper-slide h-auto">
+                <div class="gallery-card group">
+                  <a
+                    href="{{ .URL }}"
+                    class="block h-full text-academic-900 no-underline hover:no-underline"
+                  >
+                    <div class="gallery-media">
+                      <img
+                        src="{{ .CoverPhoto.FileURL }}"
+                        alt="{{ .CoverPhoto.Title }}"
+                        loading="lazy"
+                        class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    </div>
+
+                    <div class="p-4">
+                      <h3 class="mt-1 text-lg font-semibold text-academic-900">
+                        {{ .SubjectName }}
+                      </h3>
+                      <p class="mt-1 text-sm text-academic-500">
+                        {{ .ClassName }} / {{ .SemesterName }}
+                      </p>
+
+                      <div class="mt-4 rounded-xl bg-academic-50 p-3">
+                        <p
+                          class="text-xs font-semibold uppercase text-academic-500"
+                        >
+                          Chapters
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-academic-800">
+                          {{ .ChapterCount }}
+                          chapter{{ if ne .ChapterCount 1 }}s{{ end }} with
+                          gallery photos
+                        </p>
+                      </div>
+
+                      <div class="mt-4 flex items-center justify-between gap-3">
+                        <span class="badge"
+                          >{{ .PhotoCount }}
+                          photo{{ if ne .PhotoCount 1 }}s{{ end }}</span
+                        >
+                        <span class="text-sm font-semibold text-brand-700"
+                          >View chapters</span
+                        >
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              </article>
+            {{ end }}
+          </div>
+
+          <div class="gallery-swiper-pagination"></div>
+        </div>
+      </section>
+    {{ end }}
   </section>
 {{ end }}

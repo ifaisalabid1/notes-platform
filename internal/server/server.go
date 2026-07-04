@@ -35,6 +35,7 @@ type Dependencies struct {
 	LoginRateLimiter *ratelimit.IPLimiter
 	AppBaseURL       string
 	MaintenanceMode  bool
+	IsProduction     bool
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -47,7 +48,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.RealIP)
 	r.Use(requestLogger)
 	r.Use(recoverer(errorHandler.InternalServerError))
-	r.Use(securityHeaders)
+	r.Use(headRequests)
+	r.Use(securityHeaders(deps.IsProduction))
 	r.Use(maintenanceMode(deps.MaintenanceMode, maintenanceHandler.Show))
 	r.Use(middleware.Timeout(60 * time.Second))
 
@@ -182,6 +184,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Get("/", publicHandler.Home)
 	r.Get("/notes/{noteID}/view", publicHandler.ViewNote)
 	r.Get("/search", publicHandler.Search)
+	r.Get("/gallery/subjects/{subjectID}", publicHandler.GallerySubject)
+	r.Get("/gallery/chapters/{chapterID}", publicHandler.GalleryChapter)
 	r.Get("/robots.txt", seoHandler.Robots)
 	r.Get("/sitemap.xml", seoHandler.Sitemap)
 
@@ -264,17 +268,17 @@ func NewRouter(deps Dependencies) http.Handler {
 
 	r.NotFound(errorHandler.NotFound)
 
-	return deps.SessionManager.LoadAndSave(noSurf(r))
+	return deps.SessionManager.LoadAndSave(noSurf(r, deps.IsProduction))
 }
 
-func noSurf(next http.Handler) http.Handler {
+func noSurf(next http.Handler, isProduction bool) http.Handler {
 	csrfHandler := nosurf.New(next)
 
 	csrfHandler.SetBaseCookie(http.Cookie{
 		HttpOnly: true,
 		Path:     "/",
 		SameSite: http.SameSiteLaxMode,
-		Secure:   true,
+		Secure:   isProduction,
 	})
 
 	return csrfHandler

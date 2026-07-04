@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -32,6 +33,30 @@ type PublicNoteSearchParams struct {
 type PublicNoteSearchResult struct {
 	Notes      []Note
 	TotalCount int
+}
+
+type PublicImageGallerySubject struct {
+	SubjectID    uuid.UUID
+	SubjectName  string
+	SemesterName string
+	ClassName    string
+	ChapterCount int
+	PhotoCount   int
+	LatestAt     time.Time
+	CoverNote    Note
+}
+
+type PublicImageGalleryChapter struct {
+	ChapterID    uuid.UUID
+	ChapterName  string
+	UnitName     string
+	SubjectID    uuid.UUID
+	SubjectName  string
+	SemesterName string
+	ClassName    string
+	PhotoCount   int
+	LatestAt     time.Time
+	CoverNote    Note
 }
 
 func (r *PublicRepository) PublishedClasses(ctx context.Context) ([]Class, error) {
@@ -1092,6 +1117,555 @@ func (r *PublicRepository) LatestPublishedNotes(ctx context.Context, limit int) 
 	}
 
 	return notes, nil
+}
+
+func (r *PublicRepository) PublishedImageGallerySubjects(ctx context.Context, limit int) ([]PublicImageGallerySubject, error) {
+	if limit <= 0 {
+		limit = 11
+	}
+
+	if limit > 18 {
+		limit = 18
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		WITH image_notes AS (
+			SELECT
+				n.id,
+				n.chapter_id,
+				ch.name AS chapter_name,
+				u.name AS unit_name,
+				sub.id AS subject_id,
+				sub.name AS subject_name,
+				sem.name AS semester_name,
+				c.name AS class_name,
+				n.title,
+				n.slug,
+				n.description,
+				n.original_file_name,
+				n.stored_file_name,
+				n.storage_key,
+				n.content_type,
+				n.file_size_bytes,
+				n.is_pdf,
+				n.is_watermarked,
+				n.download_count,
+				n.view_count,
+				n.sort_order,
+				n.is_published,
+				n.uploaded_by,
+				n.archived_at,
+				n.created_at,
+				n.updated_at
+			FROM notes n
+			JOIN chapters ch ON ch.id = n.chapter_id
+			JOIN units u ON u.id = ch.unit_id
+			JOIN subjects sub ON sub.id = u.subject_id
+			JOIN semesters sem ON sem.id = sub.semester_id
+			JOIN classes c ON c.id = sem.class_id
+			WHERE c.is_published = TRUE
+			AND sem.is_published = TRUE
+			AND sub.is_published = TRUE
+			AND u.is_published = TRUE
+			AND ch.is_published = TRUE
+			AND n.is_published = TRUE
+			AND n.archived_at IS NULL
+			AND n.content_type IN ('image/jpeg', 'image/png', 'image/webp')
+		),
+		subject_stats AS (
+			SELECT
+				subject_id,
+				COUNT(DISTINCT chapter_id)::integer AS chapter_count,
+				COUNT(*)::integer AS photo_count,
+				MAX(created_at) AS latest_at
+			FROM image_notes
+			GROUP BY subject_id
+		),
+		ranked_subjects AS (
+			SELECT
+				image_notes.*,
+				subject_stats.chapter_count,
+				subject_stats.photo_count,
+				subject_stats.latest_at,
+				ROW_NUMBER() OVER (
+					PARTITION BY image_notes.subject_id
+					ORDER BY image_notes.created_at DESC, image_notes.title ASC
+				) AS subject_rank
+			FROM image_notes
+			JOIN subject_stats ON subject_stats.subject_id = image_notes.subject_id
+		)
+		SELECT
+			subject_id,
+			subject_name,
+			semester_name,
+			class_name,
+			chapter_count,
+			photo_count,
+			latest_at,
+			id,
+			chapter_id,
+			chapter_name,
+			unit_name,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			download_count,
+			view_count,
+			sort_order,
+			is_published,
+			uploaded_by,
+			archived_at,
+			created_at,
+			updated_at
+		FROM ranked_subjects
+		WHERE subject_rank = 1
+		ORDER BY latest_at DESC, subject_name ASC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list public image gallery subjects: %w", err)
+	}
+	defer rows.Close()
+
+	subjects := make([]PublicImageGallerySubject, 0)
+
+	for rows.Next() {
+		var item PublicImageGallerySubject
+
+		err := rows.Scan(
+			&item.SubjectID,
+			&item.SubjectName,
+			&item.SemesterName,
+			&item.ClassName,
+			&item.ChapterCount,
+			&item.PhotoCount,
+			&item.LatestAt,
+			&item.CoverNote.ID,
+			&item.CoverNote.ChapterID,
+			&item.CoverNote.ChapterName,
+			&item.CoverNote.UnitName,
+			&item.CoverNote.Title,
+			&item.CoverNote.Slug,
+			&item.CoverNote.Description,
+			&item.CoverNote.OriginalFileName,
+			&item.CoverNote.StoredFileName,
+			&item.CoverNote.StorageKey,
+			&item.CoverNote.ContentType,
+			&item.CoverNote.FileSizeBytes,
+			&item.CoverNote.IsPDF,
+			&item.CoverNote.IsWatermarked,
+			&item.CoverNote.DownloadCount,
+			&item.CoverNote.ViewCount,
+			&item.CoverNote.SortOrder,
+			&item.CoverNote.IsPublished,
+			&item.CoverNote.UploadedBy,
+			&item.CoverNote.ArchivedAt,
+			&item.CoverNote.CreatedAt,
+			&item.CoverNote.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan public image gallery subject: %w", err)
+		}
+
+		item.CoverNote.SubjectName = item.SubjectName
+		item.CoverNote.SemesterName = item.SemesterName
+		item.CoverNote.ClassName = item.ClassName
+
+		subjects = append(subjects, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate public image gallery subjects: %w", err)
+	}
+
+	return subjects, nil
+}
+
+func (r *PublicRepository) PublishedImageGalleryChaptersBySubjectID(ctx context.Context, subjectID uuid.UUID) ([]PublicImageGalleryChapter, error) {
+	if subjectID == uuid.Nil {
+		return []PublicImageGalleryChapter{}, nil
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		WITH image_notes AS (
+			SELECT
+				n.id,
+				n.chapter_id,
+				ch.name AS chapter_name,
+				u.name AS unit_name,
+				sub.id AS subject_id,
+				sub.name AS subject_name,
+				sem.name AS semester_name,
+				c.name AS class_name,
+				n.title,
+				n.slug,
+				n.description,
+				n.original_file_name,
+				n.stored_file_name,
+				n.storage_key,
+				n.content_type,
+				n.file_size_bytes,
+				n.is_pdf,
+				n.is_watermarked,
+				n.download_count,
+				n.view_count,
+				n.sort_order,
+				n.is_published,
+				n.uploaded_by,
+				n.archived_at,
+				n.created_at,
+				n.updated_at
+			FROM notes n
+			JOIN chapters ch ON ch.id = n.chapter_id
+			JOIN units u ON u.id = ch.unit_id
+			JOIN subjects sub ON sub.id = u.subject_id
+			JOIN semesters sem ON sem.id = sub.semester_id
+			JOIN classes c ON c.id = sem.class_id
+			WHERE c.is_published = TRUE
+			AND sem.is_published = TRUE
+			AND sub.is_published = TRUE
+			AND u.is_published = TRUE
+			AND ch.is_published = TRUE
+			AND n.is_published = TRUE
+			AND n.archived_at IS NULL
+			AND n.content_type IN ('image/jpeg', 'image/png', 'image/webp')
+			AND sub.id = $1
+		),
+		chapter_stats AS (
+			SELECT
+				chapter_id,
+				COUNT(*)::integer AS photo_count,
+				MAX(created_at) AS latest_at
+			FROM image_notes
+			GROUP BY chapter_id
+		),
+		ranked_chapters AS (
+			SELECT
+				image_notes.*,
+				chapter_stats.photo_count,
+				chapter_stats.latest_at,
+				ROW_NUMBER() OVER (
+					PARTITION BY image_notes.chapter_id
+					ORDER BY image_notes.created_at DESC, image_notes.title ASC
+				) AS chapter_rank
+			FROM image_notes
+			JOIN chapter_stats ON chapter_stats.chapter_id = image_notes.chapter_id
+		)
+		SELECT
+			chapter_id,
+			chapter_name,
+			unit_name,
+			subject_id,
+			subject_name,
+			semester_name,
+			class_name,
+			photo_count,
+			latest_at,
+			id,
+			chapter_id,
+			chapter_name,
+			unit_name,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			download_count,
+			view_count,
+			sort_order,
+			is_published,
+			uploaded_by,
+			archived_at,
+			created_at,
+			updated_at
+		FROM ranked_chapters
+		WHERE chapter_rank = 1
+		ORDER BY latest_at DESC, chapter_name ASC
+	`, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("list public image gallery subject chapters: %w", err)
+	}
+	defer rows.Close()
+
+	chapters := make([]PublicImageGalleryChapter, 0)
+
+	for rows.Next() {
+		var item PublicImageGalleryChapter
+
+		err := rows.Scan(
+			&item.ChapterID,
+			&item.ChapterName,
+			&item.UnitName,
+			&item.SubjectID,
+			&item.SubjectName,
+			&item.SemesterName,
+			&item.ClassName,
+			&item.PhotoCount,
+			&item.LatestAt,
+			&item.CoverNote.ID,
+			&item.CoverNote.ChapterID,
+			&item.CoverNote.ChapterName,
+			&item.CoverNote.UnitName,
+			&item.CoverNote.Title,
+			&item.CoverNote.Slug,
+			&item.CoverNote.Description,
+			&item.CoverNote.OriginalFileName,
+			&item.CoverNote.StoredFileName,
+			&item.CoverNote.StorageKey,
+			&item.CoverNote.ContentType,
+			&item.CoverNote.FileSizeBytes,
+			&item.CoverNote.IsPDF,
+			&item.CoverNote.IsWatermarked,
+			&item.CoverNote.DownloadCount,
+			&item.CoverNote.ViewCount,
+			&item.CoverNote.SortOrder,
+			&item.CoverNote.IsPublished,
+			&item.CoverNote.UploadedBy,
+			&item.CoverNote.ArchivedAt,
+			&item.CoverNote.CreatedAt,
+			&item.CoverNote.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan public image gallery subject chapter: %w", err)
+		}
+
+		item.CoverNote.SubjectName = item.SubjectName
+		item.CoverNote.SemesterName = item.SemesterName
+		item.CoverNote.ClassName = item.ClassName
+
+		chapters = append(chapters, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate public image gallery subject chapters: %w", err)
+	}
+
+	return chapters, nil
+}
+
+func (r *PublicRepository) PublishedImageGalleryNotesByChapterID(ctx context.Context, chapterID uuid.UUID) (Class, Semester, Subject, Unit, Chapter, []Note, error) {
+	if chapterID == uuid.Nil {
+		return Class{}, Semester{}, Subject{}, Unit{}, Chapter{}, nil, pgx.ErrNoRows
+	}
+
+	var classItem Class
+	var semesterItem Semester
+	var subjectItem Subject
+	var unitItem Unit
+	var chapterItem Chapter
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			c.id,
+			c.name,
+			c.slug,
+			c.description,
+			c.sort_order,
+			c.is_published,
+			c.created_at,
+			c.updated_at,
+			sem.id,
+			sem.class_id,
+			sem.name,
+			sem.slug,
+			sem.description,
+			sem.sort_order,
+			sem.is_published,
+			sem.created_at,
+			sem.updated_at,
+			sub.id,
+			sub.semester_id,
+			sub.name,
+			sub.slug,
+			sub.description,
+			sub.sort_order,
+			sub.is_published,
+			sub.created_at,
+			sub.updated_at,
+			u.id,
+			u.subject_id,
+			u.name,
+			u.slug,
+			u.description,
+			u.sort_order,
+			u.is_published,
+			u.created_at,
+			u.updated_at,
+			ch.id,
+			ch.unit_id,
+			ch.name,
+			ch.slug,
+			ch.description,
+			ch.sort_order,
+			ch.is_published,
+			ch.created_at,
+			ch.updated_at
+		FROM chapters ch
+		JOIN units u ON u.id = ch.unit_id
+		JOIN subjects sub ON sub.id = u.subject_id
+		JOIN semesters sem ON sem.id = sub.semester_id
+		JOIN classes c ON c.id = sem.class_id
+		WHERE ch.id = $1
+		AND c.is_published = TRUE
+		AND sem.is_published = TRUE
+		AND sub.is_published = TRUE
+		AND u.is_published = TRUE
+		AND ch.is_published = TRUE
+	`, chapterID).Scan(
+		&classItem.ID,
+		&classItem.Name,
+		&classItem.Slug,
+		&classItem.Description,
+		&classItem.SortOrder,
+		&classItem.IsPublished,
+		&classItem.CreatedAt,
+		&classItem.UpdatedAt,
+		&semesterItem.ID,
+		&semesterItem.ClassID,
+		&semesterItem.Name,
+		&semesterItem.Slug,
+		&semesterItem.Description,
+		&semesterItem.SortOrder,
+		&semesterItem.IsPublished,
+		&semesterItem.CreatedAt,
+		&semesterItem.UpdatedAt,
+		&subjectItem.ID,
+		&subjectItem.SemesterID,
+		&subjectItem.Name,
+		&subjectItem.Slug,
+		&subjectItem.Description,
+		&subjectItem.SortOrder,
+		&subjectItem.IsPublished,
+		&subjectItem.CreatedAt,
+		&subjectItem.UpdatedAt,
+		&unitItem.ID,
+		&unitItem.SubjectID,
+		&unitItem.Name,
+		&unitItem.Slug,
+		&unitItem.Description,
+		&unitItem.SortOrder,
+		&unitItem.IsPublished,
+		&unitItem.CreatedAt,
+		&unitItem.UpdatedAt,
+		&chapterItem.ID,
+		&chapterItem.UnitID,
+		&chapterItem.Name,
+		&chapterItem.Slug,
+		&chapterItem.Description,
+		&chapterItem.SortOrder,
+		&chapterItem.IsPublished,
+		&chapterItem.CreatedAt,
+		&chapterItem.UpdatedAt,
+	)
+	if err != nil {
+		return Class{}, Semester{}, Subject{}, Unit{}, Chapter{}, nil, fmt.Errorf("find public image gallery chapter: %w", err)
+	}
+
+	semesterItem.ClassName = classItem.Name
+	subjectItem.ClassName = classItem.Name
+	subjectItem.SemesterName = semesterItem.Name
+	unitItem.ClassName = classItem.Name
+	unitItem.SemesterName = semesterItem.Name
+	unitItem.SubjectName = subjectItem.Name
+	chapterItem.ClassName = classItem.Name
+	chapterItem.SemesterName = semesterItem.Name
+	chapterItem.SubjectName = subjectItem.Name
+	chapterItem.UnitName = unitItem.Name
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			id,
+			chapter_id,
+			title,
+			slug,
+			description,
+			original_file_name,
+			stored_file_name,
+			storage_key,
+			content_type,
+			file_size_bytes,
+			is_pdf,
+			is_watermarked,
+			download_count,
+			view_count,
+			sort_order,
+			is_published,
+			uploaded_by,
+			archived_at,
+			created_at,
+			updated_at
+		FROM notes
+		WHERE chapter_id = $1
+		AND is_published = TRUE
+		AND archived_at IS NULL
+		AND content_type IN ('image/jpeg', 'image/png', 'image/webp')
+		ORDER BY sort_order ASC, created_at DESC, title ASC
+	`, chapterID)
+	if err != nil {
+		return Class{}, Semester{}, Subject{}, Unit{}, Chapter{}, nil, fmt.Errorf("list public image gallery chapter notes: %w", err)
+	}
+	defer rows.Close()
+
+	notes := make([]Note, 0)
+
+	for rows.Next() {
+		var item Note
+
+		err := rows.Scan(
+			&item.ID,
+			&item.ChapterID,
+			&item.Title,
+			&item.Slug,
+			&item.Description,
+			&item.OriginalFileName,
+			&item.StoredFileName,
+			&item.StorageKey,
+			&item.ContentType,
+			&item.FileSizeBytes,
+			&item.IsPDF,
+			&item.IsWatermarked,
+			&item.DownloadCount,
+			&item.ViewCount,
+			&item.SortOrder,
+			&item.IsPublished,
+			&item.UploadedBy,
+			&item.ArchivedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		if err != nil {
+			return Class{}, Semester{}, Subject{}, Unit{}, Chapter{}, nil, fmt.Errorf("scan public image gallery chapter note: %w", err)
+		}
+
+		item.ClassName = classItem.Name
+		item.SemesterName = semesterItem.Name
+		item.SubjectName = subjectItem.Name
+		item.UnitName = unitItem.Name
+		item.ChapterName = chapterItem.Name
+		notes = append(notes, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return Class{}, Semester{}, Subject{}, Unit{}, Chapter{}, nil, fmt.Errorf("iterate public image gallery chapter notes: %w", err)
+	}
+
+	if len(notes) == 0 {
+		return Class{}, Semester{}, Subject{}, Unit{}, Chapter{}, nil, pgx.ErrNoRows
+	}
+
+	return classItem, semesterItem, subjectItem, unitItem, chapterItem, notes, nil
 }
 
 func (r *PublicRepository) PublishedNoteByID(ctx context.Context, id uuid.UUID) (Note, error) {

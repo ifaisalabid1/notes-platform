@@ -31,7 +31,13 @@
       <meta name="twitter:description" content="{{ .Description }}" />
 
       <link rel="stylesheet" href="/static/css/app.css" />
+      {{ range .Styles }}
+        <link rel="stylesheet" href="{{ . }}" />
+      {{ end }}
       <script src="/static/vendor/htmx/htmx.min.js" defer></script>
+      {{ range .Scripts }}
+        <script src="{{ . }}" defer></script>
+      {{ end }}
     </head>
 
     <body>

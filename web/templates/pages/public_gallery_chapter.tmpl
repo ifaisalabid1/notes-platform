@@ -1,0 +1,52 @@
+{{ define "content" }}
+  <section class="space-y-8">
+    <div>
+      <nav class="text-sm text-academic-500">
+        <a href="/" class="nav-link">Classes</a>
+        <span class="mx-2">/</span>
+        <a href="/#gallery" class="nav-link">Photo Gallery</a>
+        <span class="mx-2">/</span>
+        <a href="/gallery/subjects/{{ .Data.Subject.ID }}" class="nav-link">
+          {{ .Data.Subject.Name }}
+        </a>
+        <span class="mx-2">/</span>
+        <span>{{ .Data.Chapter.Name }}</span>
+      </nav>
+
+      <h1 class="page-title mt-4">{{ .Data.Chapter.Name }}</h1>
+      <p class="page-subtitle">
+        {{ .Data.Class.Name }} / {{ .Data.Semester.Name }} /
+        {{ .Data.Subject.Name }} / {{ .Data.Unit.Name }}
+      </p>
+    </div>
+
+    {{ with .Data.Photos }}
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {{ range . }}
+          <a
+            href="{{ .FileURL }}"
+            class="gallery-lightbox gallery-card group block text-academic-900 no-underline hover:no-underline"
+            data-gallery="chapter-gallery"
+            data-type="image"
+          >
+            <div class="gallery-media">
+              <img
+                src="{{ .FileURL }}"
+                alt="{{ .Title }}"
+                loading="lazy"
+                class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+            </div>
+          </a>
+        {{ end }}
+      </div>
+    {{ else }}
+      <div class="empty-state">
+        <h3 class="empty-state-title">No gallery images available</h3>
+        <p class="empty-state-text">
+          Images for this chapter will appear here once they are published.
+        </p>
+      </div>
+    {{ end }}
+  </section>
+{{ end }}

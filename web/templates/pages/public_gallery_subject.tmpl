@@ -1,0 +1,65 @@
+{{ define "content" }}
+  <section class="space-y-8">
+    <div>
+      <nav class="text-sm text-academic-500">
+        <a href="/" class="nav-link">Classes</a>
+        <span class="mx-2">/</span>
+        <a href="/#gallery" class="nav-link">Photo Gallery</a>
+        <span class="mx-2">/</span>
+        <span>{{ .Data.SubjectName }}</span>
+      </nav>
+
+      <h1 class="page-title mt-4">{{ .Data.SubjectName }} Gallery</h1>
+      <p class="page-subtitle">
+        Choose a chapter to view all gallery images for this subject.
+      </p>
+    </div>
+
+    {{ with .Data.Chapters }}
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {{ range . }}
+          <a
+            href="{{ .URL }}"
+            class="gallery-card group block text-academic-900 no-underline hover:no-underline"
+          >
+            <div class="gallery-media">
+              <img
+                src="{{ .CoverPhoto.FileURL }}"
+                alt="{{ .CoverPhoto.Title }}"
+                loading="lazy"
+                class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+            </div>
+
+            <div class="p-4">
+              <p class="text-xs font-semibold uppercase text-academic-500">
+                {{ .UnitName }}
+              </p>
+              <h2 class="mt-1 text-lg font-semibold text-academic-900">
+                {{ .ChapterName }}
+              </h2>
+
+              <div class="mt-4 flex items-center justify-between gap-3">
+                <span class="badge"
+                  >{{ .PhotoCount }}
+                  photo{{ if ne .PhotoCount 1 }}s{{ end }}</span
+                >
+                <span class="text-sm font-semibold text-brand-700">
+                  View images
+                </span>
+              </div>
+            </div>
+          </a>
+        {{ end }}
+      </div>
+    {{ else }}
+      <div class="empty-state">
+        <h3 class="empty-state-title">No gallery chapters available</h3>
+        <p class="empty-state-text">
+          Gallery chapters for this subject will appear here once images are
+          published.
+        </p>
+      </div>
+    {{ end }}
+  </section>
+{{ end }}

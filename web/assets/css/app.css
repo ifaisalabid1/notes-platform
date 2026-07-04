@@ -161,4 +161,32 @@
   .empty-state-text {
     @apply mt-2 text-sm leading-6 text-academic-600;
   }
+
+  .gallery-swiper {
+    @apply overflow-hidden pb-10;
+  }
+
+  .gallery-card {
+    @apply h-full overflow-hidden rounded-2xl border border-academic-200 bg-white shadow-sm transition hover:border-brand-300 hover:shadow-md;
+  }
+
+  .gallery-media {
+    @apply aspect-[4/3] overflow-hidden bg-academic-100;
+  }
+
+  .gallery-control {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-academic-300 bg-white text-2xl font-semibold leading-none text-academic-700 shadow-sm transition hover:bg-academic-100 hover:text-brand-700 focus:outline-none focus:ring-4 focus:ring-academic-200;
+  }
+
+  .gallery-swiper-pagination {
+    @apply mt-5 flex justify-center gap-2;
+  }
+
+  .gallery-swiper-pagination .swiper-pagination-bullet {
+    @apply m-0 h-2.5 w-2.5 bg-academic-300 opacity-100;
+  }
+
+  .gallery-swiper-pagination .swiper-pagination-bullet-active {
+    @apply bg-brand-700;
+  }
 }
